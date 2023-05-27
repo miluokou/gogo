@@ -14,9 +14,7 @@ func main() {
 	utils.InitDatabase()
 
 	// 注册路由
-	routers.SetupRouter()
-
-   
+	routers.SetupRouter(router)
 
 	// 启动服务器，监听指定端口
 	router.Run(":8080")

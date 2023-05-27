@@ -1,25 +1,54 @@
-// mvc/models/user_model.go
 package models
 
 import (
-	"time"
 	"database/sql"
+	"errors"
+	"time"
+    "database/sql/driver"
 	"mvc/utils"
 )
 
-type User struct {
-	ID        uint      `json:"id"`
-	Name      string    `json:"name"`
-	Email     string    `json:"email"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+type CustomTime struct {
+	time.Time
 }
 
-// GetUsers 返回所有用户
+func (ct *CustomTime) Scan(value interface{}) error {
+	switch v := value.(type) {
+	case time.Time:
+		ct.Time = v
+	case []byte:
+		t, err := time.Parse("2006-01-02 15:04:05", string(v))
+		if err != nil {
+			return err
+		}
+		ct.Time = t
+	case nil:
+		ct.Time = time.Time{}
+	default:
+		return errors.New("failed to scan CustomTime")
+	}
+
+	return nil
+}
+
+func (ct CustomTime) Value() (driver.Value, error) {
+	if ct.IsZero() {
+		return nil, nil
+	}
+	return ct.Time, nil
+}
+
+type User struct {
+	ID        uint       `json:"id"`
+	Name      string     `json:"name"`
+	Email     string     `json:"email"`
+	CreatedAt CustomTime `json:"created_at"`
+	UpdatedAt CustomTime `json:"updated_at"`
+}
+
 func GetUsers() ([]User, error) {
 	db := utils.GetDB()
 
-	// 执行获取用户列表的逻辑
 	users := []User{}
 	rows, err := db.Query("SELECT * FROM users")
 	if err != nil {
@@ -43,13 +72,11 @@ func GetUsers() ([]User, error) {
 	return users, nil
 }
 
-// CreateUser 创建新用户
 func CreateUser(user User) (User, error) {
 	db := utils.GetDB()
 
-	// 执行创建用户的逻辑
 	_, err := db.Exec("INSERT INTO users (name, email, created_at, updated_at) VALUES (?, ?, ?, ?)",
-		user.Name, user.Email, user.CreatedAt, user.UpdatedAt)
+		user.Name, user.Email, user.CreatedAt.Time, user.UpdatedAt.Time)
 	if err != nil {
 		return User{}, err
 	}
@@ -57,7 +84,6 @@ func CreateUser(user User) (User, error) {
 	return user, nil
 }
 
-// GetUserByID 根据ID获取单个用户
 func GetUserByID(id uint) (User, error) {
 	db := utils.GetDB()
 
@@ -66,7 +92,7 @@ func GetUserByID(id uint) (User, error) {
 	err := row.Scan(&user.ID, &user.Name, &user.Email, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return User{}, nil // 没有找到对应ID的用户，返回nil
+			return User{}, nil
 		}
 		return User{}, err
 	}
@@ -74,13 +100,11 @@ func GetUserByID(id uint) (User, error) {
 	return user, nil
 }
 
-// UpdateUser 更新用户
 func UpdateUser(user User) (User, error) {
 	db := utils.GetDB()
 
-	// 执行更新用户的逻辑
 	_, err := db.Exec("UPDATE users SET name = ?, email = ?, updated_at = ? WHERE id = ?",
-		user.Name, user.Email, user.UpdatedAt, user.ID)
+		user.Name, user.Email, user.UpdatedAt.Time, user.ID)
 	if err != nil {
 		return User{}, err
 	}
@@ -88,11 +112,9 @@ func UpdateUser(user User) (User, error) {
 	return user, nil
 }
 
-// DeleteUser 删除用户
 func DeleteUser(id uint) error {
 	db := utils.GetDB()
 
-	// 执行删除用户的逻辑
 	_, err := db.Exec("DELETE FROM users WHERE id = ?", id)
 	if err != nil {
 		return err

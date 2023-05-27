@@ -1,23 +1,18 @@
-// mvc/routers/router.go
 package routers
 
 import (
-	"mvc/controllers"
-
 	"github.com/gin-gonic/gin"
-	"fmt"
+	"mvc/controllers"
 )
 
-func SetupRouter() *gin.Engine {
-	router := gin.Default()
-	fmt.Println("Setting up routes...")
-
-// 注册路由
+func SetupRouter(router *gin.Engine) {
+	// 注册根路由
 	router.GET("/", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"message": "Hello, users!",
 		})
 	})
+
 	// 用户相关路由
 	userGroup := router.Group("/users")
 	{
@@ -27,12 +22,9 @@ func SetupRouter() *gin.Engine {
 		// 添加其他用户相关的路由
 	}
 
-	// 添加日志输出语句
-	router.Use(func(c *gin.Context) {
-		fmt.Println("Request passed through the router")
-		c.Next()
-	})
+	// 添加其他路由...
 
-	return router
+	// 添加中间件或其他配置
+
+	// 注意：此处不需要返回任何内容，因为我们是直接修改传入的 `router` 对象
 }
-
