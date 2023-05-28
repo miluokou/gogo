@@ -13,6 +13,8 @@ func SetupRouter(router *gin.Engine) {
 		})
 	})
 
+	router.POST("/wechat/login", controllers.WeChatLogin)
+	
 	// 用户相关路由
 	userGroup := router.Group("/users")
 	{
