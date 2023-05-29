@@ -3,6 +3,7 @@
 package controllers
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -12,12 +13,15 @@ import (
 )
 
 type WeChatLoginRequest struct {
-	Code string `json:"code"`
+	Code          string `json:"code"`
+	EncryptedData string `json:"encryptedData"`
+	IV            string `json:"iv"`
 }
 
 type WeChatLoginResponse struct {
-	OpenID     string `json:"openid"`
-	SessionKey string `json:"session_key"`
+	OpenID      string `json:"openid"`
+	SessionKey  string `json:"session_key"`
+	PhoneNumber string `json:"phone_number"`
 }
 
 func WeChatLogin(c *gin.Context) {
@@ -34,9 +38,17 @@ func WeChatLogin(c *gin.Context) {
 		return
 	}
 
+	// 获取用户手机号
+	phoneNumber, err := getUserPhoneNumber(wechatResp.SessionKey, req.EncryptedData, req.IV)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user phone number"})
+		return
+	}
+
 	resp := WeChatLoginResponse{
-		OpenID:     wechatResp.OpenID,
-		SessionKey: wechatResp.SessionKey,
+		OpenID:      wechatResp.OpenID,
+		SessionKey:  wechatResp.SessionKey,
+		PhoneNumber: phoneNumber,
 	}
 	c.JSON(http.StatusOK, resp)
 }
@@ -67,4 +79,66 @@ func getWeChatLoginResponse(code string) (*WeChatLoginResponse, error) {
 	}
 
 	return &wechatResp, nil
+}
+
+func getUserPhoneNumber(sessionKey string, encryptedData string, iv string) (string, error) {
+	appID := "wx31fbd515cacb4d88"
+	appSecret := "ca6754d99b05fc0139e9dd2b2a49ecd5"
+	// 获取 access_token
+	accessTokenURL := fmt.Sprintf("https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=%s&secret=%s", appID, appSecret)
+	accessTokenResponse, err := http.Get(accessTokenURL)
+	if err != nil {
+		return "", err
+	}
+	defer accessTokenResponse.Body.Close()
+
+	accessTokenBody, err := ioutil.ReadAll(accessTokenResponse.Body)
+	if err != nil {
+		return "", err
+	}
+
+	accessTokenData := make(map[string]interface{})
+	err = json.Unmarshal(accessTokenBody, &accessTokenData)
+	if err != nil {
+		return "", err
+	}
+
+	accessToken := accessTokenData["access_token"].(string)
+
+	// 获取用户手机号
+	phoneNumberData := map[string]interface{}{
+		"code":          sessionKey,
+		"encryptedData": encryptedData,
+		"iv":            iv,
+	}
+
+	requestBody, err := json.Marshal(phoneNumberData)
+	if err != nil {
+		return "", err
+	}
+
+	response, err := http.Post(fmt.Sprintf("https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token=%s", accessToken), "application/json", bytes.NewBuffer(requestBody))
+	if err != nil {
+		return "", err
+	}
+	defer response.Body.Close()
+
+	responseBody, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return "", err
+	}
+
+	responseData := make(map[string]interface{})
+	err = json.Unmarshal(responseBody, &responseData)
+	if err != nil {
+		return "", err
+	}
+
+	if phoneNumberInfo, ok := responseData["phone_info"].(map[string]interface{}); ok {
+		if phoneNumber, ok := phoneNumberInfo["phoneNumber"].(string); ok {
+			return phoneNumber, nil
+		}
+	}
+
+	return "", nil
 }
