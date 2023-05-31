@@ -82,63 +82,68 @@ func getWeChatLoginResponse(code string) (*WeChatLoginResponse, error) {
 }
 
 func getUserPhoneNumber(sessionKey string, encryptedData string, iv string) (string, error) {
-	appID := "wx31fbd515cacb4d88"
-	appSecret := "ca6754d99b05fc0139e9dd2b2a49ecd5"
-	// 获取 access_token
-	accessTokenURL := fmt.Sprintf("https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=%s&secret=%s", appID, appSecret)
-	accessTokenResponse, err := http.Get(accessTokenURL)
-	if err != nil {
-		return "", err
-	}
-	defer accessTokenResponse.Body.Close()
+    appID := "wx31fbd515cacb4d88"
+    appSecret := "ca6754d99b05fc0139e9dd2b2a49ecd5"
+    // 获取 access_token
+    accessTokenURL := fmt.Sprintf("https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=%s&secret=%s", appID, appSecret)
+    accessTokenResponse, err := http.Get(accessTokenURL)
+    if err != nil {
+        return "", err
+    }
+    defer accessTokenResponse.Body.Close()
 
-	accessTokenBody, err := ioutil.ReadAll(accessTokenResponse.Body)
-	if err != nil {
-		return "", err
-	}
+    accessTokenBody, err := ioutil.ReadAll(accessTokenResponse.Body)
+    if err != nil {
+        return "", err
+    }
 
-	accessTokenData := make(map[string]interface{})
-	err = json.Unmarshal(accessTokenBody, &accessTokenData)
-	if err != nil {
-		return "", err
-	}
+    accessTokenData := make(map[string]interface{})
+    err = json.Unmarshal(accessTokenBody, &accessTokenData)
+    if err != nil {
+        return "", err
+    }
 
-	accessToken := accessTokenData["access_token"].(string)
+    accessToken := accessTokenData["access_token"].(string)
+    fmt.Println("Access Token:", accessToken)
 
-	// 获取用户手机号
-	phoneNumberData := map[string]interface{}{
-		"code":          sessionKey,
-		"encryptedData": encryptedData,
-		"iv":            iv,
-	}
+    // 获取用户手机号
+    phoneNumberData := map[string]interface{}{
+        "code":          sessionKey,
+        "encryptedData": encryptedData,
+        "iv":            iv,
+    }
 
-	requestBody, err := json.Marshal(phoneNumberData)
-	if err != nil {
-		return "", err
-	}
+    requestBody, err := json.Marshal(phoneNumberData)
+    if err != nil {
+        return "", err
+    }
 
-	response, err := http.Post(fmt.Sprintf("https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token=%s", accessToken), "application/json", bytes.NewBuffer(requestBody))
-	if err != nil {
-		return "", err
-	}
-	defer response.Body.Close()
+    fmt.Println("Request Body:", string(requestBody))
 
-	responseBody, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		return "", err
-	}
+    response, err := http.Post(fmt.Sprintf("https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token=%s", accessToken), "application/json", bytes.NewBuffer(requestBody))
+    if err != nil {
+        return "", err
+    }
+    defer response.Body.Close()
 
-	responseData := make(map[string]interface{})
-	err = json.Unmarshal(responseBody, &responseData)
-	if err != nil {
-		return "", err
-	}
+    responseBody, err := ioutil.ReadAll(response.Body)
+    if err != nil {
+        return "", err
+    }
 
-	if phoneNumberInfo, ok := responseData["phone_info"].(map[string]interface{}); ok {
-		if phoneNumber, ok := phoneNumberInfo["phoneNumber"].(string); ok {
-			return phoneNumber, nil
-		}
-	}
+    fmt.Println("Response Body:", string(responseBody))
 
-	return "", nil
+    responseData := make(map[string]interface{})
+    err = json.Unmarshal(responseBody, &responseData)
+    if err != nil {
+        return "", err
+    }
+
+    if phoneNumberInfo, ok := responseData["phone_info"].(map[string]interface{}); ok {
+        if phoneNumber, ok := phoneNumberInfo["phoneNumber"].(string); ok {
+            return phoneNumber, nil
+        }
+    }
+
+    return "", nil
 }
