@@ -10,6 +10,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/spf13/viper"
 )
 
 type WeChatLoginRequest struct {
@@ -22,128 +23,103 @@ type WeChatLoginResponse struct {
 	OpenID      string `json:"openid"`
 	SessionKey  string `json:"session_key"`
 	PhoneNumber string `json:"phone_number"`
+	Error       string `json:"error"`
 }
 
 func WeChatLogin(c *gin.Context) {
 	var req WeChatLoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// 调用微信登录验证接口，获取 openid 和 session_key
-	wechatResp, err := getWeChatLoginResponse(req.Code)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Failed to login"})
-		return
-	}
+	// 获取微信登录的配置信息
+	appID := viper.GetString("wechat.app_id")
+	appSecret := viper.GetString("wechat.app_secret")
 
-	// 获取用户手机号
-	phoneNumber, err := getUserPhoneNumber(wechatResp.SessionKey, req.EncryptedData, req.IV)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user phone number"})
-		return
-	}
+	// 构造获取 session_key 和 openid 的 URL
+	url := fmt.Sprintf("https://api.weixin.qq.com/sns/jscode2session?appid=%s&secret=%s&js_code=%s&grant_type=authorization_code", appID, appSecret, req.Code)
 
-	resp := WeChatLoginResponse{
-		OpenID:      wechatResp.OpenID,
-		SessionKey:  wechatResp.SessionKey,
-		PhoneNumber: phoneNumber,
-	}
-	c.JSON(http.StatusOK, resp)
-}
-
-func getWeChatLoginResponse(code string) (*WeChatLoginResponse, error) {
-	appID := "wx5507ea2a74d21f58"
-	appSecret := "5e7573fece9ccdba12b70a6650197693"
-	url := fmt.Sprintf("https://api.weixin.qq.com/sns/jscode2session?appid=%s&secret=%s&js_code=%s&grant_type=authorization_code", appID, appSecret, code)
-
-	// 发起 HTTP 请求到微信服务器
+	// 发送 HTTP 请求获取 session_key 和 openid
 	resp, err := http.Get(url)
 	if err != nil {
-		return nil, err
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
 	defer resp.Body.Close()
 
-	// 读取响应内容
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
 
-	// 解析 JSON 响应
-	var wechatResp WeChatLoginResponse
-	err = json.Unmarshal(body, &wechatResp)
+	var data map[string]interface{}
+	if err := json.Unmarshal(body, &data); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 检查是否成功获取 session_key 和 openid
+	if _, ok := data["session_key"]; !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get session_key"})
+		return
+	}
+	if _, ok := data["openid"]; !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get openid"})
+		return
+	}
+
+	// 解密用户手机号码
+	phoneNumber, err := getUserPhoneNumber(req.EncryptedData, req.IV, data["session_key"].(string))
 	if err != nil {
-		return nil, err
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
 
-	return &wechatResp, nil
+	// 返回登录结果
+	c.JSON(http.StatusOK, WeChatLoginResponse{
+		OpenID:      data["openid"].(string),
+		SessionKey:  data["session_key"].(string),
+		PhoneNumber: phoneNumber,
+	})
 }
 
-func getUserPhoneNumber(sessionKey string, encryptedData string, iv string) (string, error) {
-    appID := "wx5507ea2a74d21f58"
-    appSecret := "5e7573fece9ccdba12b70a6650197693"
-    // 获取 access_token
-    accessTokenURL := fmt.Sprintf("https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=%s&secret=%s", appID, appSecret)
-    accessTokenResponse, err := http.Get(accessTokenURL)
-    if err != nil {
-        return "", err
-    }
-    defer accessTokenResponse.Body.Close()
+func getUserPhoneNumber(encryptedData, iv, sessionKey string) (string, error) {
+	// 构造解密用户手机号码的 URL
+	url := fmt.Sprintf("https://api.weixin.qq.com/wxa/getphonenumber?access_token=%s", sessionKey)
 
-    accessTokenBody, err := ioutil.ReadAll(accessTokenResponse.Body)
-    if err != nil {
-        return "", err
-    }
+	// 构造请求体
+	reqBody := map[string]string{
+		"encryptedData": encryptedData,
+		"iv":            iv,
+	}
+	reqBodyBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", err
+	}
 
-    accessTokenData := make(map[string]interface{})
-    err = json.Unmarshal(accessTokenBody, &accessTokenData)
-    if err != nil {
-        return "", err
-    }
+	// 发送 HTTP POST 请求解密用户手机号码
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(reqBodyBytes))
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
 
-    accessToken := accessTokenData["access_token"].(string)
-    fmt.Println("Access Token:", accessToken)
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
 
-    // 获取用户手机号
-    phoneNumberData := map[string]interface{}{
-        "code":          sessionKey,
-        "encryptedData": encryptedData,
-        "iv":            iv,
-    }
+	var data map[string]interface{}
+	if err := json.Unmarshal(body, &data); err != nil {
+		return "", err
+	}
 
-    requestBody, err := json.Marshal(phoneNumberData)
-    if err != nil {
-        return "", err
-    }
+	// 检查是否成功获取用户手机号码
+	if _, ok := data["phoneNumber"]; !ok {
+		return "", fmt.Errorf("failed to get phone number: %v", data)
+	}
 
-    fmt.Println("Request Body:", string(requestBody))
-
-    response, err := http.Post(fmt.Sprintf("https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token=%s", accessToken), "application/json", bytes.NewBuffer(requestBody))
-    if err != nil {
-        return "", err
-    }
-    defer response.Body.Close()
-
-    responseBody, err := ioutil.ReadAll(response.Body)
-    if err != nil {
-        return "", err
-    }
-
-    fmt.Println("Response Body:", string(responseBody))
-
-    responseData := make(map[string]interface{})
-    err = json.Unmarshal(responseBody, &responseData)
-    if err != nil {
-        return "", err
-    }
-
-    if phoneNumberInfo, ok := responseData["phone_info"].(map[string]interface{}); ok {
-        if phoneNumber, ok := phoneNumberInfo["phoneNumber"].(string); ok {
-            return phoneNumber, nil
-        }
-    }
-
-    return "", nil
+	return data["phoneNumber"].(string), nil
 }
