@@ -54,8 +54,8 @@ func WeChatLogin(c *gin.Context) {
 }
 
 func getWeChatLoginResponse(code string) (*WeChatLoginResponse, error) {
-	appID := "wx31fbd515cacb4d88"
-	appSecret := "ca6754d99b05fc0139e9dd2b2a49ecd5"
+	appID := "wx5507ea2a74d21f58"
+	appSecret := "5e7573fece9ccdba12b70a6650197693"
 	url := fmt.Sprintf("https://api.weixin.qq.com/sns/jscode2session?appid=%s&secret=%s&js_code=%s&grant_type=authorization_code", appID, appSecret, code)
 
 	// 发起 HTTP 请求到微信服务器
@@ -82,8 +82,8 @@ func getWeChatLoginResponse(code string) (*WeChatLoginResponse, error) {
 }
 
 func getUserPhoneNumber(sessionKey string, encryptedData string, iv string) (string, error) {
-    appID := "wx31fbd515cacb4d88"
-    appSecret := "ca6754d99b05fc0139e9dd2b2a49ecd5"
+    appID := "wx5507ea2a74d21f58"
+    appSecret := "5e7573fece9ccdba12b70a6650197693"
     // 获取 access_token
     accessTokenURL := fmt.Sprintf("https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=%s&secret=%s", appID, appSecret)
     accessTokenResponse, err := http.Get(accessTokenURL)

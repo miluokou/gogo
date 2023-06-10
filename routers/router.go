@@ -6,12 +6,7 @@ import (
 )
 
 func SetupRouter(router *gin.Engine) {
-	// 注册根路由
-	router.GET("/", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"message": "Hello, users!",
-		})
-	})
+	
 
 	router.POST("/wechat/login", controllers.WeChatLogin)
 	
@@ -23,6 +18,9 @@ func SetupRouter(router *gin.Engine) {
 		userGroup.GET("/:id", controllers.GetUserByID)
 		// 添加其他用户相关的路由
 	}
+
+	// 注册根路由
+	router.GET("/test",  controllers.TestEnv)
 
 	// 添加其他路由...
 
