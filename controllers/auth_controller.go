@@ -59,14 +59,15 @@ func getWxPhoneNumber(phoneCode, encryptedData, iv, sessionKey string) (string, 
 		return "", err
 	}
 
-	// 检查是否成功获取用户手机号码
-	if _, ok := data["phone_info"].(map[string]interface{})["phoneNumber"]; !ok {
-		return "", fmt.Errorf("failed to get phone number: %v", data)
+	// 获取用户手机号码
+	if phoneInfo, ok := data["phone_info"].(map[string]interface{}); ok {
+		if phoneNumber, ok := phoneInfo["phoneNumber"].(string); ok {
+			return phoneNumber, nil
+		}
 	}
 
-	return data["phone_info"].(map[string]interface{})["phoneNumber"].(string), nil
+	return "", errors.New("failed to get phone number")
 }
-
 
 func WeChatLogin(c *gin.Context) {
 	var req WeChatLoginRequest
