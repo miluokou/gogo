@@ -17,6 +17,7 @@ type WeChatLoginRequest struct {
 	Code          string `json:"code"`
 	EncryptedData string `json:"encryptedData"`
 	IV            string `json:"iv"`
+	PhoneCode     string `json:"phoneCode"`
 }
 
 type WeChatLoginResponse struct {
@@ -26,12 +27,54 @@ type WeChatLoginResponse struct {
 	Error       string `json:"error"`
 }
 
+func getWxPhoneNumber(phoneCode, encryptedData, iv, sessionKey string) (string, error) {
+	// 构造解密用户手机号码的 URL
+	url := fmt.Sprintf("https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token=%s", sessionKey)
+
+	// 构造请求体
+	reqBody := map[string]string{
+		"code":          phoneCode,
+		"encryptedData": encryptedData,
+		"iv":            iv,
+	}
+	reqBodyBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", err
+	}
+
+	// 发送 HTTP POST 请求解密用户手机号码
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(reqBodyBytes))
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	var data map[string]interface{}
+	if err := json.Unmarshal(body, &data); err != nil {
+		return "", err
+	}
+
+	// 检查是否成功获取用户手机号码
+	if _, ok := data["phone_info"].(map[string]interface{})["phoneNumber"]; !ok {
+		return "", fmt.Errorf("failed to get phone number: %v", data)
+	}
+
+	return data["phone_info"].(map[string]interface{})["phoneNumber"].(string), nil
+}
+
+
 func WeChatLogin(c *gin.Context) {
 	var req WeChatLoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
 
 	// 获取微信登录的配置信息
 	appID := viper.GetString("wechat.app_id")
@@ -70,8 +113,15 @@ func WeChatLogin(c *gin.Context) {
 		return
 	}
 
+	// // 解密用户手机号码
+	// phoneNumber, err := getUserPhoneNumber(req.EncryptedData, req.IV, data["session_key"].(string))
+	// if err != nil {
+	// 	c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	// 	return
+	// }
+
 	// 解密用户手机号码
-	phoneNumber, err := getUserPhoneNumber(req.EncryptedData, req.IV, data["session_key"].(string))
+	phoneNumber, err := getWxPhoneNumber(req.PhoneCode, req.EncryptedData, req.IV, data["session_key"].(string))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
