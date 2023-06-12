@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-
+	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 )
