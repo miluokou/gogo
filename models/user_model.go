@@ -2,48 +2,21 @@ package models
 
 import (
 	"database/sql"
-	"errors"
+	"fmt"
 	"time"
-    "database/sql/driver"
+
 	"mvc/utils"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
-type CustomTime struct {
-	time.Time
-}
-
-func (ct *CustomTime) Scan(value interface{}) error {
-	switch v := value.(type) {
-	case time.Time:
-		ct.Time = v
-	case []byte:
-		t, err := time.Parse("2006-01-02 15:04:05", string(v))
-		if err != nil {
-			return err
-		}
-		ct.Time = t
-	case nil:
-		ct.Time = time.Time{}
-	default:
-		return errors.New("failed to scan CustomTime")
-	}
-
-	return nil
-}
-
-func (ct CustomTime) Value() (driver.Value, error) {
-	if ct.IsZero() {
-		return nil, nil
-	}
-	return ct.Time, nil
-}
-
 type User struct {
-	ID        uint       `json:"id"`
-	Name      string     `json:"name"`
-	Email     string     `json:"email"`
-	CreatedAt CustomTime `json:"created_at"`
-	UpdatedAt CustomTime `json:"updated_at"`
+	ID          uint   `json:"id"`
+	Name        string `json:"name"`
+	Email       string `json:"email"`
+	PhoneNumber string `json:"phone"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
 }
 
 func GetUsers() ([]User, error) {
@@ -58,7 +31,7 @@ func GetUsers() ([]User, error) {
 
 	for rows.Next() {
 		var user User
-		err := rows.Scan(&user.ID, &user.Name, &user.Email, &user.CreatedAt, &user.UpdatedAt)
+		err := rows.Scan(&user.ID, &user.Name, &user.Email, &user.PhoneNumber, &user.CreatedAt, &user.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -75,11 +48,23 @@ func GetUsers() ([]User, error) {
 func CreateUser(user User) (User, error) {
 	db := utils.GetDB()
 
-	_, err := db.Exec("INSERT INTO users (name, email, created_at, updated_at) VALUES (?, ?, ?, ?)",
-		user.Name, user.Email, user.CreatedAt.Time, user.UpdatedAt.Time)
+	createdAt := time.Now().Format("2006-01-02 15:04:05")
+	updatedAt := time.Now().Format("2006-01-02 15:04:05")
+
+	result, err := db.Exec("INSERT INTO users (name, email, phone, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+		user.Name, user.Email, user.PhoneNumber, createdAt, updatedAt)
 	if err != nil {
 		return User{}, err
 	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return User{}, err
+	}
+
+	user.ID = uint(id)
+	user.CreatedAt = createdAt
+	user.UpdatedAt = updatedAt
 
 	return user, nil
 }
@@ -89,7 +74,23 @@ func GetUserByID(id uint) (User, error) {
 
 	user := User{}
 	row := db.QueryRow("SELECT * FROM users WHERE id = ?", id)
-	err := row.Scan(&user.ID, &user.Name, &user.Email, &user.CreatedAt, &user.UpdatedAt)
+	err := row.Scan(&user.ID, &user.Name, &user.Email, &user.PhoneNumber, &user.CreatedAt, &user.UpdatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return User{}, nil
+		}
+		return User{}, err
+	}
+
+	return user, nil
+}
+
+func GetUserByPhoneNumber(phoneNumber string) (User, error) {
+	db := utils.GetDB()
+
+	user := User{}
+	row := db.QueryRow("SELECT * FROM users WHERE phone_number = ?", phoneNumber)
+	err := row.Scan(&user.ID, &user.Name, &user.Email, &user.PhoneNumber, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return User{}, nil
@@ -103,11 +104,23 @@ func GetUserByID(id uint) (User, error) {
 func UpdateUser(user User) (User, error) {
 	db := utils.GetDB()
 
-	_, err := db.Exec("UPDATE users SET name = ?, email = ?, updated_at = ? WHERE id = ?",
-		user.Name, user.Email, user.UpdatedAt.Time, user.ID)
+	updatedAt := time.Now().Format("2006-01-02 15:04:05")
+	result, err := db.Exec("UPDATE users SET name = ?, email = ?, phone_number = ?, updated_at = ? WHERE id = ?",
+		user.Name, user.Email, user.PhoneNumber, updatedAt, user.ID)
 	if err != nil {
 		return User{}, err
 	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return User{}, err
+	}
+
+	if rowsAffected == 0 {
+		return User{}, fmt.Errorf("no rows affected")
+	}
+
+	user.UpdatedAt = updatedAt
 
 	return user, nil
 }
@@ -115,9 +128,18 @@ func UpdateUser(user User) (User, error) {
 func DeleteUser(id uint) error {
 	db := utils.GetDB()
 
-	_, err := db.Exec("DELETE FROM users WHERE id = ?", id)
+	result, err := db.Exec("DELETE FROM users WHERE id = ?", id)
 	if err != nil {
 		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("no rows affected")
 	}
 
 	return nil
