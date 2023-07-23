@@ -29,5 +29,5 @@ func main() {
 	routers.SetupRouter(router)
 
 	// 启动服务器，监听指定端口
-	router.Run(":8080")
+	router.Run(":9090")
 }

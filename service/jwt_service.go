@@ -1,11 +1,11 @@
-package jwt
+package service
 
 import (
 	"errors"
 	"fmt"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
+	jwt "gopkg.in/dgrijalva/jwt-go.v3"
 )
 
 // 定义自定义声明结构体
@@ -33,24 +33,27 @@ func NewJWTController(secretKey, salt string) (*JWTController, error) {
 
 // GenerateToken 函数，用于生成 JWT Token
 func (c *JWTController) GenerateToken(userID uint, expireDuration time.Duration) (string, error) {
+	now := time.Now()
+	expireTime := now.Add(expireDuration).Unix()
+
 	claims := &CustomClaims{
 		UserID: userID,
 		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(expireDuration).Unix(),
+			ExpiresAt: expireTime,
 			Issuer:    "jwt",
 		},
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHMAC(c.Salt), claims)
-	return token.SignedString(append([]byte{}, c.SecretKey...))
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(c.SecretKey)
 }
 
 // VerifyToken 函数，用于验证 JWT Token
 func (c *JWTController) VerifyToken(tokenString string) (*CustomClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+		if token.Method != jwt.SigningMethodHS256 {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return append([]byte{}, c.SecretKey...), nil
+		return c.SecretKey, nil
 	})
 	if err != nil {
 		return nil, err
@@ -70,7 +73,10 @@ func (c *JWTController) RefreshToken(tokenString string, expireDuration time.Dur
 		return "", err
 	}
 
-	claims.ExpiresAt = time.Now().Add(expireDuration).Unix()
-	token := jwt.NewWithClaims(jwt.SigningMethodHMAC(c.Salt), claims)
-	return token.SignedString(append([]byte{}, c.SecretKey...))
+	now := time.Now()
+	expireTime := now.Add(expireDuration).Unix()
+
+	claims.StandardClaims.ExpiresAt = expireTime
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(c.SecretKey)
 }
