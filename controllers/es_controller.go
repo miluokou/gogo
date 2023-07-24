@@ -10,6 +10,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
+	"mvc/service"
+	"strings"
 )
 
 type Property struct {
@@ -96,21 +98,28 @@ func EsEnv(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "无法获取属性数据"})
 		return
 	}
-
-	results := []Property{}
-	for _, prop := range properties {
-		results = append(results, Property{
-			ID:            int(prop.ID),
-			YearInfo:      prop.YearInfo,
-			CommunityName: prop.CommunityName,
-			AddressInfo:   prop.AddressInfo,
-			PricePerSqm:   prop.PricePerSqm,
-			PageNumber:    prop.PageNumber,
-			Deal:          prop.Deal,
-			CreatedAt:     prop.CreatedAt,
-			UpdatedAt:     prop.UpdatedAt,
-		})
-	}
+    apiKey := "cb3e60dc70d48516d5d19ccaa000ae37"
+    service := service.NewAMapService(apiKey)
+    
+    results := []Property{}
+    for _, prop := range properties {
+        addressInfo := strings.ReplaceAll(prop.AddressInfo, "-", "")
+        address := prop.City + addressInfo + prop.CommunityName
+        result, err := service.PlaceSearch(address, prop.City)
+        if err != nil {
+            fmt.Println(err)
+        }
+    
+        // 将结果结构体转换为 JSON 格式
+        jsonData, err := json.MarshalIndent(result.RawData, "", "  ")
+        if err != nil {
+            fmt.Println("JSON 编码失败:", err)
+            return
+        }
+    
+        // 打印 JSON 数据
+        fmt.Println(string(jsonData))
+    }
 
 	c.JSON(http.StatusOK, gin.H{"message": "属性数据获取成功", "data": results})
 

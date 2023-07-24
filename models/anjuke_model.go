@@ -22,7 +22,7 @@ type PropertyData struct {
 
 func GetOriginData() ([]PropertyData, error) {
 	db := utils.GetDB2()
-	query := "SELECT * FROM djangoproject_propertydata WHERE deal = '0' LIMIT 100"
+	query := "SELECT * FROM djangoproject_propertydata WHERE deal = '0' LIMIT 1"
 
 	rows, err := db.Query(query)
 	if err != nil {
