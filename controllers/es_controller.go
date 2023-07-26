@@ -1,16 +1,16 @@
 package controllers
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"mvc/models"
-    "bytes"
-	"github.com/gin-gonic/gin"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
+	"github.com/gin-gonic/gin"
+	"mvc/models"
 	"mvc/service"
+	"net/http"
 	"strings"
 )
 
@@ -24,6 +24,11 @@ type Property struct {
 	Deal          string `json:"deal"`
 	CreatedAt     string `json:"created_at"`
 	UpdatedAt     string `json:"updated_at"`
+}
+
+type PlaceSearchResult struct {
+	RawData map[string]interface{} `json:"-"`
+	Data    []interface{}          `json:"data"`
 }
 
 func createESClient() (*elasticsearch.Client, error) {
@@ -98,55 +103,53 @@ func EsEnv(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "无法获取属性数据"})
 		return
 	}
-    apiKey := "cb3e60dc70d48516d5d19ccaa000ae37"
-    service := service.NewAMapService(apiKey)
-    
-    results := []Property{}
-    for _, prop := range properties {
-        addressInfo := strings.ReplaceAll(prop.AddressInfo, "-", "")
-        address := prop.City + addressInfo + prop.CommunityName
-        result, err := service.PlaceSearch(address, prop.City)
-        if err != nil {
-            fmt.Println(err)
-        }
-    
-        // 将结果结构体转换为 JSON 格式
-        jsonData, err := json.MarshalIndent(result.RawData, "", "  ")
-        if err != nil {
-            fmt.Println("JSON 编码失败:", err)
-            return
-        }
-    
-        // 打印 JSON 数据
-        fmt.Println(string(jsonData))
-    }
 
-	c.JSON(http.StatusOK, gin.H{"message": "属性数据获取成功", "data": results})
+	esCfg := elasticsearch.Config{
+		Addresses: []string{"http://localhost:9200"},
+	}
+	esClient, err := elasticsearch.NewClient(esCfg)
+	if err != nil {
+		fmt.Printf("Failed to create Elasticsearch client: %s", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "无法创建Elasticsearch客户端"})
+		return
+	}
 
-// 	esClient, err := createESClient()
-// 	if err != nil {
-// 		logError(c, "创建Elasticsearch客户端失败：%v", err)
-// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建Elasticsearch客户端失败"})
-// 		return
-// 	}
+	apiKey := "cb3e60dc70d48516d5d19ccaa000ae37"
+	service := service.NewAMapService(apiKey)
 
-// 	index, id := "poi_data_2023", "anjuke"
+	results := make([]map[string]interface{}, 0)
 
-// 	data := map[string]interface{}{
-// 		"field3": "value3",
-// 		"field4": "中文数据测试",
-// 	}
+	for _, prop := range properties {
+		addressInfo := strings.ReplaceAll(prop.AddressInfo, "-", "")
+		address := prop.City + addressInfo + prop.CommunityName
+		result, err := service.Geocode(address)
+		if err != nil {
+			fmt.Println("地理编码失败:", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "地理编码失败"})
+			return
+		}
 
-// 	if err := storeData(c, esClient, index, id, data); err != nil {
-// 		return
-// 	}
+		fmt.Println(result)
+		if m, ok := result[0].(map[string]interface{}); ok {
+			results = append(results, m)
+		} else {
+			fmt.Println("无法转换为map[string]interface{}")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "无法转换地理编码结果"})
+			return
+		}
 
-// 	result, err := retrieveData(c, esClient, index, id)
-// 	if err != nil {
-// 		return
-// 	}
+		err = storeData(c, esClient, "poi_data_2023", "anjuke", result[0].(map[string]interface{}))
+		if err != nil {
+			fmt.Printf("Failed to store data in Elasticsearch: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "无法存储数据到Elasticsearch"})
+			return
+		}
+	}
 
-// 	c.JSON(http.StatusOK, gin.H{"message": "数据检索成功", "data": result})
+	c.JSON(http.StatusOK, gin.H{
+		"message": "属性数据获取成功",
+		"data":    results,
+	})
 }
 
 func logError(c *gin.Context, format string, v ...interface{}) {

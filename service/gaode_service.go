@@ -11,7 +11,7 @@ type AMapService struct {
 	APIKey string // 高德地图API密钥
 }
 
-type PlaceSearchResult struct {
+type GeocodeResult struct {
 	RawData map[string]interface{} `json:"-"` // 存储原始数据的 map
 }
 
@@ -21,8 +21,8 @@ func NewAMapService(apiKey string) *AMapService {
 	}
 }
 
-func (s *AMapService) PlaceSearch(keywords string, city string) (*PlaceSearchResult, error) {
-	baseURL := "https://restapi.amap.com/v5/place/text"
+func (s *AMapService) Geocode(address string) ([]interface{}, error) {
+	baseURL := "https://restapi.amap.com/v3/geocode/geo"
 	apiURL, err := url.Parse(baseURL)
 	if err != nil {
 		return nil, err
@@ -30,8 +30,7 @@ func (s *AMapService) PlaceSearch(keywords string, city string) (*PlaceSearchRes
 
 	queryString := apiURL.Query()
 	queryString.Set("key", s.APIKey)
-	queryString.Set("keywords", keywords)
-	queryString.Set("city", city)
+	queryString.Set("address", address)
 
 	apiURL.RawQuery = queryString.Encode()
 
@@ -42,14 +41,20 @@ func (s *AMapService) PlaceSearch(keywords string, city string) (*PlaceSearchRes
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, errors.New("获取关键字搜索数据失败")
+		return nil, errors.New("获取地理编码数据失败")
 	}
 
-	var result PlaceSearchResult
-	err = json.NewDecoder(resp.Body).Decode(&result.RawData)
+	var result map[string]interface{}
+
+	err = json.NewDecoder(resp.Body).Decode(&result)
 	if err != nil {
 		return nil, err
 	}
 
-	return &result, nil
+	geocodes, ok := result["geocodes"].([]interface{})
+	if !ok {
+		return nil, errors.New("无法提取地理编码数据")
+	}
+
+	return geocodes, nil
 }
