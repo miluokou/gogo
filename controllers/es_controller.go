@@ -14,7 +14,6 @@ import (
 	"log"
 	"mvc/models"
 	"mvc/service"
-	"mvc/utils"
 	"net/http"
 	"strconv"
 	"strings"
@@ -34,7 +33,6 @@ type Property struct {
 }
 
 var esClient *elasticsearch.Client
-var Logger *log.Logger
 
 func init() {
 	var err error
@@ -59,7 +57,7 @@ func createESClient() (*elasticsearch.Client, error) {
 	return elasticsearch.NewClient(cfg)
 }
 
-func storeData(c *gin.Context, esClient *elasticsearch.Client, index, id string, data []interface{}) error {
+func storeData(c *gin.Context, esClient *elasticsearch.Client, index string, data []interface{}) error {
 	// 将data内容转换为[]map[string]interface{}类型
 	var poiData []map[string]interface{}
 	for _, item := range data {
@@ -81,15 +79,19 @@ func storeData(c *gin.Context, esClient *elasticsearch.Client, index, id string,
 	res, err := bulkRequest.Do(context.Background(), esClient)
 	if err != nil {
 		errorMsg := fmt.Errorf("存储数据到Elasticsearch失败：%v", err)
-		logError(c, errorMsg.Error())
+		service.LogInfo(errorMsg.Error())
 		return errorMsg
 	}
-	service.LogInfo(res)
-	defer res.Body.Close()
+	defer func() {
+		if closeErr := res.Body.Close(); closeErr != nil {
+			// 写入日志文件
+			service.LogInfo(closeErr)
+		}
+	}()
 
 	if res.IsError() {
 		errorMsg := fmt.Errorf("存储数据失败。响应状态：%s", res.Status())
-		logError(c, errorMsg.Error())
+		service.LogInfo(errorMsg.Error())
 		c.JSON(res.StatusCode, gin.H{"error": res.Status()})
 		return errorMsg
 	}
@@ -186,35 +188,6 @@ func uuidStringToInt(uuidString string) uint64 {
 	return result
 }
 
-func retrieveData(c *gin.Context, esClient *elasticsearch.Client, index, id string) (map[string]interface{}, error) {
-	getReq := esapi.GetRequest{
-		Index:      index,
-		DocumentID: id,
-	}
-
-	getRes, err := getReq.Do(context.Background(), esClient)
-	if err != nil {
-		logError(c, "从Elasticsearch检索数据失败：%v", err)
-		return nil, err
-	}
-	defer getRes.Body.Close()
-
-	if getRes.IsError() {
-		logError(c, "检索数据失败。响应状态：%s", getRes.Status())
-		c.JSON(getRes.StatusCode, gin.H{"error": getRes.Status()})
-		return nil, fmt.Errorf("检索数据失败。响应状态：%s", getRes.Status())
-	}
-
-	var result map[string]interface{}
-	if err := json.NewDecoder(getRes.Body).Decode(&result); err != nil {
-		logError(c, "解码响应体失败：%v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "解码响应体失败"})
-		return nil, err
-	}
-
-	return result, nil
-}
-
 func EsEnv(c *gin.Context) {
 	properties, err := models.GetOriginData()
 	if err != nil {
@@ -233,6 +206,14 @@ func EsEnv(c *gin.Context) {
 		address := prop.City + addressInfo + prop.CommunityName
 		result, err := gaoDeService.Geocode(address)
 
+		//这里需要判断这条数据是否在数据库中已经存在了。
+		//	如果已经存在
+		//		判断房价是否为0
+		//         房价为0 那么直接赋值房价数据
+		//         房价不为0 那么取二者的平均值
+		//	如果不存在的话，还需要增加房价的数据放到其中
+		//		那么直接赋值房价数据
+
 		if err != nil {
 			fmt.Println("地理编码失败:", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "地理编码失败"})
@@ -247,7 +228,7 @@ func EsEnv(c *gin.Context) {
 			return
 		}
 
-		err = storeData(c, esClient, "poi_data_2023", "anjuke", result)
+		err = storeData(c, esClient, "poi_data_2023", result)
 		if err != nil {
 			fmt.Printf("Failed to store data in Elasticsearch: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "无法存储数据到Elasticsearch"})
@@ -259,16 +240,4 @@ func EsEnv(c *gin.Context) {
 		"message": "属性数据获取成功",
 		"data":    results,
 	})
-}
-
-func logError(c *gin.Context, format string, v ...interface{}) {
-	msg := fmt.Sprintf(format, v...)
-	fmt.Println("[ERROR]", msg)
-	utils.InitLogger()
-
-	// 将utils.Logger赋值给全局的Logger变量
-	Logger = utils.Logger
-
-	// 使用日志记录器进行日志输出
-	Logger.Println(msg)
 }
