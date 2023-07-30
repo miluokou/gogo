@@ -6,11 +6,10 @@ import (
 )
 
 func SetupRouter(router *gin.Engine) {
-	
 
 	router.POST("/wechat/login", controllers.WeChatLogin)
-	router.POST("/wechatpay/notify/payNotify/wxpay-mp",controllers.WechatCallback)
-	
+	router.POST("/wechatpay/notify/payNotify/wxpay-mp", controllers.WechatCallback)
+
 	// 用户相关路由
 	userGroup := router.Group("/users")
 	{
@@ -21,12 +20,14 @@ func SetupRouter(router *gin.Engine) {
 	}
 
 	// 注册根路由
-	router.GET("/test",  controllers.TestEnv)
+	router.GET("/test", controllers.TestEnv)
 	router.GET("/produce", controllers.TestEnvProduce)
 	router.GET("/consume", controllers.TestEnvConsume)
-	
+
 	router.GET("/propertydata", controllers.EsEnv)
 
+	// poi 查询
+	router.GET("/poi_around", controllers.PoiAround)
 	// 添加其他路由...
 
 	// 添加中间件或其他配置

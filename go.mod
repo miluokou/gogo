@@ -8,6 +8,7 @@ require (
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/google/uuid v1.1.2
 	github.com/mmcloughlin/geohash v0.10.0
+	github.com/pborman/uuid v1.2.1
 	github.com/segmentio/kafka-go v0.4.42
 	github.com/spf13/viper v1.16.0
 	gopkg.in/dgrijalva/jwt-go.v3 v3.2.0

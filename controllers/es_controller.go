@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Property struct {
@@ -68,12 +69,9 @@ func storeData(c *gin.Context, esClient *elasticsearch.Client, index, id string,
 			return errors.New("无效的数据格式")
 		}
 	}
-	logInfo(c, poiData)
-	logInfo(c, "index 的值是")
-	logInfo(c, index)
+	service.LogInfo("index 的值是")
+	service.LogInfo(index)
 	prepareData := bytes.NewReader(prepareBulkPayload(poiData))
-	logInfo(c, "准备后的值是：")
-	logInfo(c, prepareData)
 	bulkRequest := esapi.BulkRequest{
 		Index:   index,
 		Body:    prepareData,
@@ -86,7 +84,7 @@ func storeData(c *gin.Context, esClient *elasticsearch.Client, index, id string,
 		logError(c, errorMsg.Error())
 		return errorMsg
 	}
-	logInfo(c, res)
+	service.LogInfo(res)
 	defer res.Body.Close()
 
 	if res.IsError() {
@@ -99,44 +97,93 @@ func storeData(c *gin.Context, esClient *elasticsearch.Client, index, id string,
 	return nil
 }
 
-// 准备批量操作的payload
 func prepareBulkPayload(data []map[string]interface{}) []byte {
 	var bulkPayload strings.Builder
-
-	uniqueValues := make(map[interface{}]struct{})
 
 	for _, poiData := range data {
 		latLng := poiData["location"].(string)
 		coordinates := strings.Split(latLng, ",")
-		lat, _ := strconv.ParseFloat(coordinates[0], 64)
-		lon, _ := strconv.ParseFloat(coordinates[1], 64)
+		if len(coordinates) != 2 {
+			continue // 跳过无效的经纬度数据
+		}
+		lon, err := strconv.ParseFloat(coordinates[0], 64)
+		if err != nil {
+			continue // 跳过无效的经度值
+		}
+		lat, err := strconv.ParseFloat(coordinates[1], 64)
+		if err != nil {
+			continue // 跳过无效的纬度值
+		}
+
+		location := map[string]interface{}{
+			"lon": lon,
+			"lat": lat,
+		}
+		poiData["location"] = location
+
 		geoHash := geohash.Encode(lat, lon)
 		poiData["geohash"] = geoHash
 
-		uniqueID := uuid.New().String()
+		adcode, ok := poiData["adcode"].(string)
+		if !ok {
+			continue // 跳过无效的adcode值
+		}
+		uniqueID := generateUniqueID(adcode)
 		poiData["poi_id"] = uniqueID
 
-		// 检查指定字段上是否已存在相同值
-		if fieldValue, exists := poiData["fieldName"]; exists {
-			if _, isDuplicate := uniqueValues[fieldValue]; isDuplicate {
-				continue // 跳过存储重复数据
-			}
+		documentID := generateDocumentID(adcode)
+
+		currentTime := time.Now().Format("2006-01-02 15:04:05")
+
+		poiData["created_at"] = currentTime
+		poiData["updated_at"] = currentTime
+
+		poiJSON, err := json.Marshal(poiData)
+		if err != nil {
+			continue // 跳过无效的JSON序列化
 		}
 
-		// 将字段值添加到去重映射中
-		if fieldValue, exists := poiData["fieldName"]; exists {
-			uniqueValues[fieldValue] = struct{}{}
-		}
-
-		poiJSON, _ := json.Marshal(poiData)
-
-		bulkPayload.WriteString(`{"index":{}}`)
+		bulkPayload.WriteString(`{"index":{"_index":"poi_data_2023","_id":"`)
+		bulkPayload.WriteString(documentID)
+		bulkPayload.WriteString(`"}}`)
 		bulkPayload.WriteByte('\n')
 		bulkPayload.Write(poiJSON)
 		bulkPayload.WriteByte('\n')
 	}
 
 	return []byte(bulkPayload.String())
+}
+
+func generateUniqueID(adcode string) int64 {
+	adcodeInt, _ := strconv.ParseInt(adcode, 10, 64)
+
+	// 生成UUID
+	uuidValue := uuid.New().ID()
+
+	// 将adcode与UUID进行合并
+	uniqueID := adcodeInt<<32 | int64(uuidValue)
+	return uniqueID
+}
+
+func generateDocumentID(adcode string) string {
+	id := uuid.New()
+	adcodeInt, _ := strconv.ParseInt(adcode, 10, 64)
+	uuidString := id.String()
+
+	uniqueID := int64(uuidStringToInt(uuidString))<<32 | adcodeInt
+	documentID := strconv.FormatInt(uniqueID, 10)
+	return adcode + documentID
+}
+
+func uuidStringToInt(uuidString string) uint64 {
+	uuidBytes := []byte(uuidString)
+	var result uint64
+
+	for i := 0; i < len(uuidBytes); i++ {
+		result = result<<8 + uint64(uuidBytes[i])
+	}
+
+	return result
 }
 
 func retrieveData(c *gin.Context, esClient *elasticsearch.Client, index, id string) (map[string]interface{}, error) {
@@ -177,14 +224,14 @@ func EsEnv(c *gin.Context) {
 	}
 
 	apiKey := "cb3e60dc70d48516d5d19ccaa000ae37"
-	service := service.NewAMapService(apiKey)
+	gaoDeService := service.NewAMapService(apiKey)
 
 	results := make([]map[string]interface{}, 0)
 
 	for _, prop := range properties {
 		addressInfo := strings.ReplaceAll(prop.AddressInfo, "-", "")
 		address := prop.City + addressInfo + prop.CommunityName
-		result, err := service.Geocode(address)
+		result, err := gaoDeService.Geocode(address)
 
 		if err != nil {
 			fmt.Println("地理编码失败:", err)
@@ -224,16 +271,4 @@ func logError(c *gin.Context, format string, v ...interface{}) {
 
 	// 使用日志记录器进行日志输出
 	Logger.Println(msg)
-}
-
-func logInfo(c *gin.Context, v ...interface{}) {
-	message := fmt.Sprint(v...)
-	fmt.Println("[INFO]", message)
-	utils.InitLogger()
-
-	// 将utils.Logger赋值给全局的Logger变量
-	Logger = utils.Logger
-
-	// 使用日志记录器进行日志输出
-	Logger.Println(message)
 }

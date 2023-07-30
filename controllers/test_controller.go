@@ -1,19 +1,16 @@
 package controllers
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	// 	"encoding/json"
 	"fmt"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
 	"github.com/gin-gonic/gin"
-	"net/http"
-	"runtime"
-	// 	"mvc/models"
 	"github.com/segmentio/kafka-go"
 	"log"
+	"net/http"
+	"runtime"
 )
 
 func createESClient1() (*elasticsearch.Client, error) {
@@ -36,36 +33,6 @@ func logWithLineNum(format string, a ...interface{}) {
 	fmt.Printf("[%s:%d] %s\n", file, line, fmt.Sprintf(format, a...))
 }
 
-func StoreData(c *gin.Context, esClient *elasticsearch.Client, indexName string, documentID string, data map[string]interface{}) error {
-	// 构建存储请求
-	requestData, _ := json.Marshal(data)
-
-	req := esapi.IndexRequest{
-		Index:      indexName,
-		DocumentID: documentID,
-		Body:       bytes.NewReader(requestData),
-		Refresh:    "true",
-	}
-
-	// 执行存储请求
-	res, err := req.Do(context.Background(), esClient)
-	if err != nil {
-		logWithLineNum("Failed to store data in Elasticsearch: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to store data in Elasticsearch"})
-		return err
-	}
-	defer res.Body.Close()
-
-	// 检查响应状态码
-	if res.IsError() {
-		logWithLineNum("Failed to store data. Response status: %s", res.Status())
-		c.JSON(res.StatusCode, gin.H{"error": res.Status()})
-		return fmt.Errorf("failed to store data. Response status: %s", res.Status())
-	}
-
-	return nil
-}
-
 func RetrieveData(c *gin.Context, esClient *elasticsearch.Client, indexName string, documentID string) (map[string]interface{}, error) {
 	// 读取数据从 Elasticsearch
 	getReq := esapi.GetRequest{
@@ -81,13 +48,7 @@ func RetrieveData(c *gin.Context, esClient *elasticsearch.Client, indexName stri
 		return nil, err
 	}
 	defer getRes.Body.Close()
-
 	// 检查响应状态码
-	if getRes.IsError() {
-		logWithLineNum("Failed to retrieve data. Response status: %s", getRes.Status())
-		c.JSON(getRes.StatusCode, gin.H{"error": getRes.Status()})
-		return nil, fmt.Errorf("failed to retrieve data. Response status: %s", getRes.Status())
-	}
 
 	// 解析读取的响应数据
 	var result map[string]interface{}
@@ -183,10 +144,6 @@ func TestEnvConsume(c *gin.Context) {
 	for _, header := range msg.Headers {
 		fmt.Printf("%s: %s\n", header.Key, string(header.Value))
 	}
-
-	// 	// 打印接收到的消息值和偏移量
-	// 	fmt.Println("接收到的消息值:", string(msg.Value))
-	// 	fmt.Println("消息偏移量:", msg.Offset)
 
 	c.String(http.StatusOK, string(msg.Value))
 }
