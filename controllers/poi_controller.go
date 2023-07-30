@@ -3,7 +3,6 @@ package controllers
 import (
 	"github.com/gin-gonic/gin"
 	"mvc/service"
-	"net/http"
 	"strconv"
 )
 
@@ -16,32 +15,30 @@ func PoiAround(c *gin.Context) {
 	longitude, latitude, err := service.ParseLocation(location)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid location parameter"})
+		c.Set("error", err.Error())
 		return
 	}
 
 	// 将半径参数转换为 float64 类型
 	radius, err := strconv.ParseFloat(radiusStr, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid radius parameter"})
+		c.Set("error", err.Error())
 		return
 	}
 
 	// 创建 POIService 实例
 	poiService, err := service.NewPOIService()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error1"})
+		c.Set("error", err.Error())
 		return
 	}
 
 	// 调用 POIService 的方法查询 POI 点位信息
 	pois, err := poiService.GetPOIsByLocationAndRadius(latitude, longitude, radius)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error2"})
+		c.Set("error", err.Error()) // 将异常信息存储到上下文的 Keys 中
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"data": pois,
-	})
+	c.Set("response", pois)
 }
