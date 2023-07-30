@@ -4,13 +4,19 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"github.com/mmcloughlin/geohash"
+	"log"
 	"mvc/models"
 	"mvc/service"
+	"mvc/utils"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -26,6 +32,17 @@ type Property struct {
 	UpdatedAt     string `json:"updated_at"`
 }
 
+var esClient *elasticsearch.Client
+var Logger *log.Logger
+
+func init() {
+	var err error
+	esClient, err = createESClient()
+	if err != nil {
+		log.Fatalf("Failed to create Elasticsearch client: %s", err)
+	}
+}
+
 type PlaceSearchResult struct {
 	RawData map[string]interface{} `json:"-"`
 	Data    []interface{}          `json:"data"`
@@ -33,7 +50,7 @@ type PlaceSearchResult struct {
 
 func createESClient() (*elasticsearch.Client, error) {
 	cfg := elasticsearch.Config{
-		Addresses: []string{"http://localhost:9200"},
+		Addresses: []string{"http://47.100.242.199:9200"},
 		Username:  "elastic",
 		Password:  "miluokou",
 	}
@@ -41,30 +58,85 @@ func createESClient() (*elasticsearch.Client, error) {
 	return elasticsearch.NewClient(cfg)
 }
 
-func storeData(c *gin.Context, esClient *elasticsearch.Client, index, id string, data map[string]interface{}) error {
-	reqData, _ := json.Marshal(data)
-
-	req := esapi.IndexRequest{
-		Index:      index,
-		DocumentID: id,
-		Body:       bytes.NewReader(reqData),
-		Refresh:    "true",
+func storeData(c *gin.Context, esClient *elasticsearch.Client, index, id string, data []interface{}) error {
+	// 将data内容转换为[]map[string]interface{}类型
+	var poiData []map[string]interface{}
+	for _, item := range data {
+		if m, ok := item.(map[string]interface{}); ok {
+			poiData = append(poiData, m)
+		} else {
+			return errors.New("无效的数据格式")
+		}
+	}
+	logInfo(c, poiData)
+	logInfo(c, "index 的值是")
+	logInfo(c, index)
+	prepareData := bytes.NewReader(prepareBulkPayload(poiData))
+	logInfo(c, "准备后的值是：")
+	logInfo(c, prepareData)
+	bulkRequest := esapi.BulkRequest{
+		Index:   index,
+		Body:    prepareData,
+		Refresh: "true",
 	}
 
-	res, err := req.Do(context.Background(), esClient)
+	res, err := bulkRequest.Do(context.Background(), esClient)
 	if err != nil {
-		logError(c, "存储数据到Elasticsearch失败：%v", err)
-		return err
+		errorMsg := fmt.Errorf("存储数据到Elasticsearch失败：%v", err)
+		logError(c, errorMsg.Error())
+		return errorMsg
 	}
+	logInfo(c, res)
 	defer res.Body.Close()
 
 	if res.IsError() {
-		logError(c, "存储数据失败。响应状态：%s", res.Status())
+		errorMsg := fmt.Errorf("存储数据失败。响应状态：%s", res.Status())
+		logError(c, errorMsg.Error())
 		c.JSON(res.StatusCode, gin.H{"error": res.Status()})
-		return fmt.Errorf("存储数据失败。响应状态：%s", res.Status())
+		return errorMsg
 	}
 
 	return nil
+}
+
+// 准备批量操作的payload
+func prepareBulkPayload(data []map[string]interface{}) []byte {
+	var bulkPayload strings.Builder
+
+	uniqueValues := make(map[interface{}]struct{})
+
+	for _, poiData := range data {
+		latLng := poiData["location"].(string)
+		coordinates := strings.Split(latLng, ",")
+		lat, _ := strconv.ParseFloat(coordinates[0], 64)
+		lon, _ := strconv.ParseFloat(coordinates[1], 64)
+		geoHash := geohash.Encode(lat, lon)
+		poiData["geohash"] = geoHash
+
+		uniqueID := uuid.New().String()
+		poiData["poi_id"] = uniqueID
+
+		// 检查指定字段上是否已存在相同值
+		if fieldValue, exists := poiData["fieldName"]; exists {
+			if _, isDuplicate := uniqueValues[fieldValue]; isDuplicate {
+				continue // 跳过存储重复数据
+			}
+		}
+
+		// 将字段值添加到去重映射中
+		if fieldValue, exists := poiData["fieldName"]; exists {
+			uniqueValues[fieldValue] = struct{}{}
+		}
+
+		poiJSON, _ := json.Marshal(poiData)
+
+		bulkPayload.WriteString(`{"index":{}}`)
+		bulkPayload.WriteByte('\n')
+		bulkPayload.Write(poiJSON)
+		bulkPayload.WriteByte('\n')
+	}
+
+	return []byte(bulkPayload.String())
 }
 
 func retrieveData(c *gin.Context, esClient *elasticsearch.Client, index, id string) (map[string]interface{}, error) {
@@ -104,16 +176,6 @@ func EsEnv(c *gin.Context) {
 		return
 	}
 
-	esCfg := elasticsearch.Config{
-		Addresses: []string{"http://localhost:9200"},
-	}
-	esClient, err := elasticsearch.NewClient(esCfg)
-	if err != nil {
-		fmt.Printf("Failed to create Elasticsearch client: %s", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "无法创建Elasticsearch客户端"})
-		return
-	}
-
 	apiKey := "cb3e60dc70d48516d5d19ccaa000ae37"
 	service := service.NewAMapService(apiKey)
 
@@ -123,13 +185,13 @@ func EsEnv(c *gin.Context) {
 		addressInfo := strings.ReplaceAll(prop.AddressInfo, "-", "")
 		address := prop.City + addressInfo + prop.CommunityName
 		result, err := service.Geocode(address)
+
 		if err != nil {
 			fmt.Println("地理编码失败:", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "地理编码失败"})
 			return
 		}
 
-		fmt.Println(result)
 		if m, ok := result[0].(map[string]interface{}); ok {
 			results = append(results, m)
 		} else {
@@ -138,7 +200,7 @@ func EsEnv(c *gin.Context) {
 			return
 		}
 
-		err = storeData(c, esClient, "poi_data_2023", "anjuke", result[0].(map[string]interface{}))
+		err = storeData(c, esClient, "poi_data_2023", "anjuke", result)
 		if err != nil {
 			fmt.Printf("Failed to store data in Elasticsearch: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "无法存储数据到Elasticsearch"})
@@ -155,4 +217,23 @@ func EsEnv(c *gin.Context) {
 func logError(c *gin.Context, format string, v ...interface{}) {
 	msg := fmt.Sprintf(format, v...)
 	fmt.Println("[ERROR]", msg)
+	utils.InitLogger()
+
+	// 将utils.Logger赋值给全局的Logger变量
+	Logger = utils.Logger
+
+	// 使用日志记录器进行日志输出
+	Logger.Println(msg)
+}
+
+func logInfo(c *gin.Context, v ...interface{}) {
+	message := fmt.Sprint(v...)
+	fmt.Println("[INFO]", message)
+	utils.InitLogger()
+
+	// 将utils.Logger赋值给全局的Logger变量
+	Logger = utils.Logger
+
+	// 使用日志记录器进行日志输出
+	Logger.Println(message)
 }

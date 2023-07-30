@@ -1,25 +1,25 @@
 package controllers
 
 import (
-    "encoding/json"
 	"bytes"
 	"context"
-// 	"encoding/json"
+	"encoding/json"
+	// 	"encoding/json"
 	"fmt"
-	"net/http"
-	"runtime"
-	"github.com/gin-gonic/gin"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
-// 	"mvc/models"
+	"github.com/gin-gonic/gin"
+	"net/http"
+	"runtime"
+	// 	"mvc/models"
 	"github.com/segmentio/kafka-go"
 	"log"
 )
 
 func createESClient1() (*elasticsearch.Client, error) {
 	cfg := elasticsearch.Config{
-		Addresses: []string{"http://localhost:9200"}, // 替换为 Elasticsearch 实际的地址
-		Username:  "elastic",                          // 替换为您的 Elasticsearch 用户名
+		Addresses: []string{"http://47.100.242.199:9200"}, // 替换为 Elasticsearch 实际的地址
+		Username:  "elastic",                              // 替换为您的 Elasticsearch 用户名
 		Password:  "miluokou",
 	}
 
@@ -101,12 +101,10 @@ func RetrieveData(c *gin.Context, esClient *elasticsearch.Client, indexName stri
 }
 
 func TestEnv(c *gin.Context) {
-    //获取安居客原始表
-    
-    
-    //你地理编码
-    
-    
+	//获取安居客原始表
+
+	//你地理编码
+
 	// 创建 Elasticsearch 客户端
 	esClient, err := createESClient1()
 	if err != nil {
@@ -119,15 +117,15 @@ func TestEnv(c *gin.Context) {
 	indexName := "your-index-name"
 	documentID := "your-document-id" // 可选，如果未提供，Elasticsearch 将自动生成一个文档 ID
 
-// 	data := map[string]interface{}{
-// 		"field3": "value3",
-// 		"field4": "中文数据测试",
-// 	}
+	// 	data := map[string]interface{}{
+	// 		"field3": "value3",
+	// 		"field4": "中文数据测试",
+	// 	}
 
-// 	err = StoreData(c, esClient, indexName, documentID, data)
-// 	if err != nil {
-// 		return
-// 	}
+	// 	err = StoreData(c, esClient, indexName, documentID, data)
+	// 	if err != nil {
+	// 		return
+	// 	}
 
 	// 读取数据从 Elasticsearch
 	result, err := RetrieveData(c, esClient, indexName, documentID)
@@ -176,21 +174,19 @@ func TestEnvConsume(c *gin.Context) {
 		c.String(http.StatusInternalServerError, "消息消费失败")
 		return
 	}
-	
-	fmt.Printf("主题：%s，分区：%d\n", msg.Topic, msg.Partition)
-    fmt.Printf("偏移量：%d\n", msg.Offset)
-    fmt.Printf("键：%s\n", string(msg.Key))
-    fmt.Printf("值：%s\n", string(msg.Value))
-    fmt.Println("头部信息:")
-    for _, header := range msg.Headers {
-        fmt.Printf("%s: %s\n", header.Key, string(header.Value))
-    }
 
-// 	// 打印接收到的消息值和偏移量
-// 	fmt.Println("接收到的消息值:", string(msg.Value))
-// 	fmt.Println("消息偏移量:", msg.Offset)
+	fmt.Printf("主题：%s，分区：%d\n", msg.Topic, msg.Partition)
+	fmt.Printf("偏移量：%d\n", msg.Offset)
+	fmt.Printf("键：%s\n", string(msg.Key))
+	fmt.Printf("值：%s\n", string(msg.Value))
+	fmt.Println("头部信息:")
+	for _, header := range msg.Headers {
+		fmt.Printf("%s: %s\n", header.Key, string(header.Value))
+	}
+
+	// 	// 打印接收到的消息值和偏移量
+	// 	fmt.Println("接收到的消息值:", string(msg.Value))
+	// 	fmt.Println("消息偏移量:", msg.Offset)
 
 	c.String(http.StatusOK, string(msg.Value))
 }
-
-

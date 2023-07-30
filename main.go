@@ -1,14 +1,25 @@
 package main
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/spf13/viper"
+	"log"
 	"mvc/routers"
 	"mvc/utils"
-	"github.com/spf13/viper"
-	"fmt"
 )
 
+var Logger *log.Logger
+
 func main() {
+	// 初始化日志记录器
+	utils.InitLogger()
+
+	// 将utils.Logger赋值给全局的Logger变量
+	Logger = utils.Logger
+
+	// 使用日志记录器进行日志输出
+	Logger.Println("加载了日志全局组件")
 
 	// 初始化 viper 库
 	viper.SetConfigName("config") // 配置文件名称（无扩展名）
