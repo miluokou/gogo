@@ -69,6 +69,7 @@ func storeData(c *gin.Context, esClient *elasticsearch.Client, index string, dat
 	}
 	service.LogInfo("index 的值是")
 	service.LogInfo(index)
+
 	prepareData := bytes.NewReader(prepareBulkPayload(poiData))
 	bulkRequest := esapi.BulkRequest{
 		Index:   index,
@@ -92,7 +93,7 @@ func storeData(c *gin.Context, esClient *elasticsearch.Client, index string, dat
 	if res.IsError() {
 		errorMsg := fmt.Errorf("存储数据失败。响应状态：%s", res.Status())
 		service.LogInfo(errorMsg.Error())
-		c.JSON(res.StatusCode, gin.H{"error": res.Status()})
+		c.Set("error", res.Status())
 		return errorMsg
 	}
 
@@ -122,6 +123,21 @@ func prepareBulkPayload(data []map[string]interface{}) []byte {
 			"lat": lat,
 		}
 		poiData["location"] = location
+
+		poiService, _ := service.NewPOIService()
+		existingData, err := poiService.GetPOIsByLocationAndRadius(lat, lon, 3)
+		if err != nil {
+			// Handle the error from GetPOIsByLocationAndRadius
+			errorMsg := fmt.Errorf("Error checking existing data: %v", err)
+			service.LogInfo(errorMsg.Error())
+			continue
+		}
+
+		if len(existingData) > 0 {
+			service.LogInfo("已经有这条数据了，跳过了存储")
+			// Data already exists, skip storage
+			continue
+		}
 
 		geoHash := geohash.Encode(lat, lon)
 		poiData["geohash"] = geoHash
@@ -216,22 +232,21 @@ func EsEnv(c *gin.Context) {
 
 		if err != nil {
 			fmt.Println("地理编码失败:", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "地理编码失败"})
+			c.Set("error", "地理编码失败")
 			return
 		}
 
 		if m, ok := result[0].(map[string]interface{}); ok {
 			results = append(results, m)
 		} else {
-			fmt.Println("无法转换为map[string]interface{}")
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "无法转换地理编码结果"})
+			c.Set("error", "无法转换地理编码结果}")
 			return
 		}
 
 		err = storeData(c, esClient, "poi_data_2023", result)
 		if err != nil {
 			fmt.Printf("Failed to store data in Elasticsearch: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "无法存储数据到Elasticsearch"})
+			c.Set("error", "无法存储数据到Elasticsearch")
 			return
 		}
 	}

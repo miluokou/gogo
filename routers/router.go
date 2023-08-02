@@ -31,6 +31,9 @@ func SetupRouter(router *gin.Engine) {
 
 	// poi 查询
 	router.GET("/poi_around", controllers.PoiAround)
+
+	//获取kafka 的主题
+	router.GET("/get_topic", controllers.GetTopics)
 	// 添加其他路由...
 
 	// 注意：此处不需要返回任何内容，因为我们是直接修改传入的 `router` 对象
