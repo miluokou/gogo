@@ -3,6 +3,7 @@ package kafka
 import (
 	"log"
 	"net/http"
+	"time"
 
 	"context"
 	"github.com/gin-gonic/gin"
@@ -46,6 +47,7 @@ func CreateConsumer() (*kafka.Reader, error) {
 		MinBytes:    10e3,
 		MaxBytes:    10e6,
 		StartOffset: kafka.LastOffset,
+		MaxWait:     time.Millisecond * 100, // 设置等待时间为 100 毫秒
 	}
 	reader := kafka.NewReader(config)
 
@@ -59,7 +61,7 @@ func Consume(reader *kafka.Reader) ([]Message, error) {
 		// 从 Kafka 消费消息
 		m, err := reader.ReadMessage(context.Background())
 		if err != nil {
-			log.Println("Failed to read message from Kafka:", err)
+			log.Println("Failed to read messag from Kafka:", err)
 			break
 		}
 		message := Message{Value: string(m.Value)}
