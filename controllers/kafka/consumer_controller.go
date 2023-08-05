@@ -9,7 +9,10 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
-// ConsumeMessages 从 Kafka 主题消费消息
+type Message struct {
+	Value string `json:"value"`
+}
+
 func ConsumeMessages(c *gin.Context) {
 	// 创建 Kafka 消费者
 	consumer, err := CreateConsumer()
@@ -30,15 +33,11 @@ func ConsumeMessages(c *gin.Context) {
 }
 
 func CreateConsumer() (*kafka.Reader, error) {
-	// 配置 Kafka 代理地址
 	brokers := []string{"localhost:9092"}
-
-	// 配置 Kafka 主题、消费者组和分区
 	topic := "test-data2"
 	groupID := "test-consumer-group"
 	partition := 0
 
-	// 创建 Kafka 消费者
 	config := kafka.ReaderConfig{
 		Brokers:   brokers,
 		Topic:     topic,
@@ -52,8 +51,8 @@ func CreateConsumer() (*kafka.Reader, error) {
 	return reader, nil
 }
 
-func Consume(reader *kafka.Reader) ([]string, error) {
-	var messages []string
+func Consume(reader *kafka.Reader) ([]Message, error) {
+	var messages []Message
 
 	for {
 		// 从 Kafka 消费消息
@@ -62,7 +61,11 @@ func Consume(reader *kafka.Reader) ([]string, error) {
 			log.Println("Failed to read message from Kafka:", err)
 			break
 		}
-		messages = append(messages, string(m.Value))
+		message := Message{Value: string(m.Value)}
+		messages = append(messages, message)
+
+		// 收到消息后立即返回结果
+		return messages, nil
 	}
 
 	return messages, nil
