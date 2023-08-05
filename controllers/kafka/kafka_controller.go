@@ -1,4 +1,4 @@
-package controllers
+package kafka
 
 import (
 	"net/http"
