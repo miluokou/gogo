@@ -35,7 +35,7 @@ func CreateConsumer() (*kafka.Reader, error) {
 
 	// 配置 Kafka 主题、消费者组和分区
 	topic := "test-data2"
-	groupID := "group1"
+	groupID := "test-consumer-group"
 	partition := 0
 
 	// 创建 Kafka 消费者

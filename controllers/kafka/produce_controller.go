@@ -54,7 +54,7 @@ func ProduceMessage(c *gin.Context) {
 
 func CreateProducer() (*kafka.Writer, error) {
 	// 配置 Kafka 代理地址
-	brokers := []string{"localhost:9092"}
+	brokers := []string{"47.100.242.199:9092"}
 
 	// 配置 Kafka 主题
 	topic := "test-data2"
