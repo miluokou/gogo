@@ -39,12 +39,13 @@ func CreateConsumer() (*kafka.Reader, error) {
 	partition := 0
 
 	config := kafka.ReaderConfig{
-		Brokers:   brokers,
-		Topic:     topic,
-		GroupID:   groupID,
-		Partition: partition,
-		MinBytes:  10e3,
-		MaxBytes:  10e6,
+		Brokers:     brokers,
+		Topic:       topic,
+		GroupID:     groupID,
+		Partition:   partition,
+		MinBytes:    10e3,
+		MaxBytes:    10e6,
+		StartOffset: kafka.LastOffset,
 	}
 	reader := kafka.NewReader(config)
 
