@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/segmentio/kafka-go"
 	"log"
+	"mvc/jobs"
 	"net/http"
 	"runtime"
 )
@@ -100,23 +101,7 @@ func TestEnv(c *gin.Context) {
 
 func TestEnvProduce(c *gin.Context) {
 	// 从请求中获取消息内容
-	message := c.PostForm("message")
-
-	// 创建Kafka生产者
-	writer := kafka.NewWriter(kafka.WriterConfig{
-		Brokers: []string{"localhost:9092"},
-		Topic:   "test-data1",
-	})
-
-	// 发送消息到Kafka
-	err := writer.WriteMessages(c.Request.Context(), kafka.Message{
-		Value: []byte(message),
-	})
-	if err != nil {
-		c.String(http.StatusInternalServerError, "消息发送失败："+err.Error())
-		return
-	}
-
+	jobs.MysqlToKafka()
 	c.String(http.StatusOK, "消息发送成功")
 }
 

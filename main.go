@@ -5,10 +5,16 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 	"mvc/routers"
+	"mvc/service"
 	"mvc/utils"
+	"time"
 )
 
 func main() {
+
+	// 启动常驻的goroutine
+	go backgroundRoutine()
+
 	// 初始化 viper 库
 	viper.SetConfigName("config") // 配置文件名称（无扩展名）
 	viper.AddConfigPath(".")      // 配置文件路径
@@ -29,4 +35,15 @@ func main() {
 
 	// 启动服务器，监听指定端口
 	router.Run(":9090")
+}
+
+func backgroundRoutine() {
+	for {
+		currentTime := time.Now()
+		formattedTime := currentTime.Format("2006-01-02 15:04:05") // 使用指定的日期时间格式
+
+		service.LogInfo("backgroundRoutine 正常执行中：" + formattedTime)
+
+		time.Sleep(time.Minute * 2) // 可以添加适当的休眠时间，避免过于频繁地执行任务
+	}
 }

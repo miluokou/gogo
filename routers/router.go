@@ -38,8 +38,10 @@ func SetupRouter(router *gin.Engine) {
 	router.POST("/kafka/produce", kafka.ProduceMessage)
 	router.POST("/kafka/consume", kafka.ConsumeMessages)
 	// 添加其他路由...
-
 	// 注意：此处不需要返回任何内容，因为我们是直接修改传入的 `router` 对象
+
+	//触发加入生产者
+
 }
 
 func ResponseMiddleware() gin.HandlerFunc {

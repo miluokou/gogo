@@ -12,6 +12,8 @@ require (
 	github.com/segmentio/kafka-go v0.4.42
 	github.com/spf13/viper v1.16.0
 	gopkg.in/dgrijalva/jwt-go.v3 v3.2.0
+	gorm.io/driver/mysql v1.5.1
+	gorm.io/gorm v1.25.2
 )
 
 require (
@@ -39,6 +41,8 @@ require (
 	github.com/jcmturner/gofork v1.7.6 // indirect
 	github.com/jcmturner/gokrb5/v8 v8.4.3 // indirect
 	github.com/jcmturner/rpc/v2 v2.0.3 // indirect
+	github.com/jinzhu/inflection v1.0.0 // indirect
+	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.16.6 // indirect
 	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
