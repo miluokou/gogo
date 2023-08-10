@@ -36,9 +36,11 @@ type PropertyData struct {
 	Deal          string `json:"deal"`
 	City          string `json:"city"`
 	QuText        string `json:"qu_text"`
+	Households    int8   `json:"households"`
+	Mark          string `json:"mark" gorm:"size:200"`
 }
 
-// 查询所有数据
+// Mark 标注数据状态
 // 根据数量查询数据
 func GetPropertyDataByCount(count int) ([]PropertyData, error) {
 	var properties []PropertyData

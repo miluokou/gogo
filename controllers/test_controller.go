@@ -7,8 +7,6 @@ import (
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
 	"github.com/gin-gonic/gin"
-	"github.com/segmentio/kafka-go"
-	"log"
 	"mvc/jobs"
 	"net/http"
 	"runtime"
@@ -78,17 +76,6 @@ func TestEnv(c *gin.Context) {
 	// 存储数据到 Elasticsearch
 	indexName := "your-index-name"
 	documentID := "your-document-id" // 可选，如果未提供，Elasticsearch 将自动生成一个文档 ID
-
-	// 	data := map[string]interface{}{
-	// 		"field3": "value3",
-	// 		"field4": "中文数据测试",
-	// 	}
-
-	// 	err = StoreData(c, esClient, indexName, documentID, data)
-	// 	if err != nil {
-	// 		return
-	// 	}
-
 	// 读取数据从 Elasticsearch
 	result, err := RetrieveData(c, esClient, indexName, documentID)
 	if err != nil {
@@ -106,29 +93,7 @@ func TestEnvProduce(c *gin.Context) {
 }
 
 func TestEnvConsume(c *gin.Context) {
-	// 创建Kafka消费者
-	reader := kafka.NewReader(kafka.ReaderConfig{
-		Brokers: []string{"localhost:9092"},
-		Topic:   "test-data1",
-		GroupID: "my-group",
-	})
 
-	// 从Kafka中读取消息
-	msg, err := reader.ReadMessage(c.Request.Context())
-	if err != nil {
-		log.Println("消息消费失败:", err)
-		c.String(http.StatusInternalServerError, "消息消费失败")
-		return
-	}
-
-	fmt.Printf("主题：%s，分区：%d\n", msg.Topic, msg.Partition)
-	fmt.Printf("偏移量：%d\n", msg.Offset)
-	fmt.Printf("键：%s\n", string(msg.Key))
-	fmt.Printf("值：%s\n", string(msg.Value))
-	fmt.Println("头部信息:")
-	for _, header := range msg.Headers {
-		fmt.Printf("%s: %s\n", header.Key, string(header.Value))
-	}
-
-	c.String(http.StatusOK, string(msg.Value))
+	jobs.TestGetMsgFromKafka()
+	c.String(http.StatusOK, "消费的请求成功，具体消费情况要看日志")
 }

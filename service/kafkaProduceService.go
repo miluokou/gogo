@@ -4,50 +4,70 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
 	"github.com/segmentio/kafka-go"
 )
 
-// KafkaProducerService 定义 Kafka 生产者服务
-type KafkaProducerService struct {
-	writer *kafka.Writer
+// ProduceMessage 发送消息到 Kafka 主题
+func ProduceMessage(message string) {
+	// 从请求获取消息内容
+
+	LogInfo("准备发送消息到 Kafka")
+	LogInfo(fmt.Sprintf("消息内容: %s", message))
+
+	// 创建 Kafka 生产者
+	producer, err := CreateProducer()
+	if err != nil {
+		LogInfo(fmt.Errorf("创建 Kafka 生产者失败：%w", err).Error())
+		return
+	}
+	defer producer.Close()
+
+	// 构建消息对象
+	kafkaMsg := kafka.Message{
+		Value: []byte(message),
+	}
+
+	// 发送消息
+	err = SendMessage(producer, context.Background(), kafkaMsg)
+	if err != nil {
+		LogInfo(fmt.Errorf("发送消息失败：%w", err).Error())
+
+		return
+	}
+
+	LogInfo("消息发送成功")
 }
 
-// NewKafkaProducerService 创建 Kafka 生产者服务实例
-func NewKafkaProducerService(brokers []string, topic string) (*KafkaProducerService, error) {
+func CreateProducer() (*kafka.Writer, error) {
+	// 配置 Kafka 代理地址
+	brokers := []string{"localhost:9092"}
+
+	// 配置 Kafka 主题
+	topic := "test-data2"
+
+	// 创建 Kafka 生产者
 	writer := kafka.NewWriter(kafka.WriterConfig{
 		Brokers: brokers,
 		Topic:   topic,
 	})
 
-	return &KafkaProducerService{
-		writer: writer,
-	}, nil
+	return writer, nil
 }
 
-// SendMessage 发送消息到 Kafka
-func (s *KafkaProducerService) SendMessage(message string) error {
-	kafkaMsg := kafka.Message{
-		Value: []byte(message),
+func SendMessage(writer *kafka.Writer, ctx context.Context, message kafka.Message) error {
+	if writer == nil {
+		return errors.New("kafka.Writer is nil")
 	}
 
-	err := s.writer.WriteMessages(context.Background(), kafkaMsg)
+	LogInfo("准备发送消息到 Kafka")
+	LogInfo(fmt.Sprintf("消息内容: %s", string(message.Value)))
+
+	err := writer.WriteMessages(ctx, message)
 	if err != nil {
-		return fmt.Errorf("failed to send message: %w", err)
+		LogInfo(fmt.Errorf("发送消息失败：%w", err).Error())
+	} else {
+		LogInfo("消息发送成功")
 	}
 
-	stats := s.writer.Stats()
-	if stats.Writes == 0 {
-		return errors.New("failed to send message to Kafka")
-	}
-
-	return nil
-}
-
-// Close 关闭 Kafka 生产者连接
-func (s *KafkaProducerService) Close() error {
-	if s.writer != nil {
-		return s.writer.Close()
-	}
-	return nil
+	return err
 }
