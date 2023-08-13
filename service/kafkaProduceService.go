@@ -31,7 +31,6 @@ func ProduceMessage(message string) {
 	err = SendMessage(producer, context.Background(), kafkaMsg)
 	if err != nil {
 		LogInfo(fmt.Errorf("发送消息失败：%w", err).Error())
-
 		return
 	}
 
