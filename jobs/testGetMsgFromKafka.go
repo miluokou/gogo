@@ -14,6 +14,6 @@ func TestGetMsgFromKafka() {
 	}
 
 	for _, message := range messages {
-		fmt.Println(message.Value)
+		fmt.Println(message.CommunityName)
 	}
 }

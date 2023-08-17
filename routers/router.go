@@ -25,6 +25,7 @@ func SetupRouter(router *gin.Engine) {
 
 	// 注册根路由
 	router.GET("/test", controllers.TestEnv)
+
 	router.GET("/produce", controllers.TestEnvProduce)
 	router.GET("/consume", controllers.TestEnvConsume)
 

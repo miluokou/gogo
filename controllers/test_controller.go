@@ -94,6 +94,6 @@ func TestEnvProduce(c *gin.Context) {
 
 func TestEnvConsume(c *gin.Context) {
 
-	jobs.TestGetMsgFromKafka()
+	jobs.KafkaToEs()
 	c.String(http.StatusOK, "消费的请求成功，具体消费情况要看日志")
 }

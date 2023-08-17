@@ -1,4 +1,4 @@
-package controllers
+package service
 
 import (
 	"bytes"
@@ -8,13 +8,9 @@ import (
 	"fmt"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
-	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/mmcloughlin/geohash"
 	"log"
-	"mvc/models"
-	"mvc/service"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -57,7 +53,7 @@ func createESClient() (*elasticsearch.Client, error) {
 	return elasticsearch.NewClient(cfg)
 }
 
-func storeData(c *gin.Context, esClient *elasticsearch.Client, index string, data []interface{}) error {
+func storeData(esClient *elasticsearch.Client, index string, data []interface{}) error {
 	// 将data内容转换为[]map[string]interface{}类型
 	var poiData []map[string]interface{}
 	for _, item := range data {
@@ -67,8 +63,8 @@ func storeData(c *gin.Context, esClient *elasticsearch.Client, index string, dat
 			return errors.New("无效的数据格式")
 		}
 	}
-	service.LogInfo("index 的值是")
-	service.LogInfo(index)
+	LogInfo("index 的值是")
+	LogInfo(index)
 
 	prepareData := bytes.NewReader(prepareBulkPayload(poiData))
 	bulkRequest := esapi.BulkRequest{
@@ -80,20 +76,19 @@ func storeData(c *gin.Context, esClient *elasticsearch.Client, index string, dat
 	res, err := bulkRequest.Do(context.Background(), esClient)
 	if err != nil {
 		errorMsg := fmt.Errorf("存储数据到Elasticsearch失败：%v", err)
-		service.LogInfo(errorMsg.Error())
+		LogInfo(errorMsg.Error())
 		return errorMsg
 	}
 	defer func() {
 		if closeErr := res.Body.Close(); closeErr != nil {
 			// 写入日志文件
-			service.LogInfo(closeErr)
+			LogInfo(closeErr)
 		}
 	}()
 
 	if res.IsError() {
 		errorMsg := fmt.Errorf("存储数据失败。响应状态：%s", res.Status())
-		service.LogInfo(errorMsg.Error())
-		c.Set("error", res.Status())
+		LogInfo(errorMsg.Error())
 		return errorMsg
 	}
 
@@ -124,17 +119,17 @@ func prepareBulkPayload(data []map[string]interface{}) []byte {
 		}
 		poiData["location"] = location
 
-		poiService, _ := service.NewPOIService()
+		poiService, _ := NewPOIService()
 		existingData, err := poiService.GetPOIsByLocationAndRadius(lat, lon, 3)
 		if err != nil {
 			// Handle the error from GetPOIsByLocationAndRadius
 			errorMsg := fmt.Errorf("Error checking existing data: %v", err)
-			service.LogInfo(errorMsg.Error())
+			LogInfo(errorMsg.Error())
 			continue
 		}
 
 		if len(existingData) > 0 {
-			service.LogInfo("已经有这条数据了，跳过了存储")
+			LogInfo("已经有这条数据了，跳过了存储")
 			// Data already exists, skip storage
 			continue
 		}
@@ -204,17 +199,23 @@ func uuidStringToInt(uuidString string) uint64 {
 	return result
 }
 
-func EsEnv(c *gin.Context) {
-	properties, err := models.GetOriginData()
+type PropertyData struct {
+	ID            uint   `json:"id"`
+	YearInfo      string `json:"year_info"`
+	CommunityName string `json:"community_name"`
+	AddressInfo   string `json:"address_info"`
+	PricePerSqm   string `json:"price_per_sqm"`
+	PageNumber    string `json:"page_number"`
+	Deal          string `json:"deal"`
+	City          string `json:"city"`
+	QuText        string `json:"qu_text"`
+	CreatedAt     string `json:"created_at"`
+	UpdatedAt     string `json:"updated_at"`
+}
 
-	if err != nil {
-		fmt.Println("错误：", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "无法获取属性数据"})
-		return
-	}
-
-	gaoDeService := service.NewAMapService()
-
+func EsEnv(properties []PropertyData) {
+	//properties, err := models.GetOriginData()
+	gaoDeService := NewAMapService()
 	results := make([]map[string]interface{}, 0)
 
 	for _, prop := range properties {
@@ -232,27 +233,20 @@ func EsEnv(c *gin.Context) {
 
 		if err != nil {
 			fmt.Println("地理编码失败:", err)
-			c.Set("error", "地理编码失败")
 			return
 		}
 
 		if m, ok := result[0].(map[string]interface{}); ok {
 			results = append(results, m)
 		} else {
-			c.Set("error", "无法转换地理编码结果}")
 			return
 		}
 
-		err = storeData(c, esClient, "poi_data_2023", result)
+		err = storeData(esClient, "poi_data_2023", result)
 		if err != nil {
 			fmt.Printf("Failed to store data in Elasticsearch: %v", err)
-			c.Set("error", "无法存储数据到Elasticsearch")
 			return
 		}
 	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "属性数据获取成功",
-		"data":    results,
-	})
+	return
 }

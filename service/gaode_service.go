@@ -15,9 +15,9 @@ type GeocodeResult struct {
 	RawData map[string]interface{} `json:"-"` // 存储原始数据的 map
 }
 
-func NewAMapService(apiKey string) *AMapService {
+func NewAMapService() *AMapService {
 	return &AMapService{
-		APIKey: apiKey,
+		APIKey: "cb3e60dc70d48516d5d19ccaa000ae37",
 	}
 }
 

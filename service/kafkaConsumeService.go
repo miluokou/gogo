@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"log"
 	"time"
 
@@ -12,7 +13,7 @@ type Message struct {
 	Value string `json:"value"`
 }
 
-func ConsumeMessages() ([]Message, error) {
+func ConsumeMessages() ([]PropertyData, error) {
 	// 创建 Kafka 消费者
 	consumer, err := CreateConsumer()
 	if err != nil {
@@ -26,8 +27,30 @@ func ConsumeMessages() ([]Message, error) {
 		return nil, err
 	}
 
-	LogInfo(messages)
-	return messages, nil
+	// 转换消息到 PropertyData 结构
+	var propertyDataList []PropertyData
+	for _, message := range messages {
+		propertyData, err := convertToPropertyData(message)
+		if err != nil {
+			// 处理转换错误
+			continue
+		}
+		propertyDataList = append(propertyDataList, propertyData)
+	}
+
+	LogInfo(propertyDataList)
+	return propertyDataList, nil
+}
+
+func convertToPropertyData(message Message) (PropertyData, error) {
+	// 解析 JSON 字符串到 PropertyData 结构
+	var propertyData PropertyData
+	err := json.Unmarshal([]byte(message.Value), &propertyData)
+	if err != nil {
+		return PropertyData{}, err
+	}
+
+	return propertyData, nil
 }
 
 func CreateConsumer() (*kafka.Reader, error) {
