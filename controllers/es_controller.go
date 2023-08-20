@@ -204,9 +204,8 @@ func uuidStringToInt(uuidString string) uint64 {
 	return result
 }
 
-func EsEnv(c *gin.Context) {
+func ImportMysqlHoseDataToES(c *gin.Context) {
 	properties, err := models.GetOriginData()
-
 	if err != nil {
 		fmt.Println("错误：", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "无法获取属性数据"})
@@ -215,39 +214,34 @@ func EsEnv(c *gin.Context) {
 
 	gaoDeService := service.NewAMapService()
 
-	results := make([]map[string]interface{}, 0)
+	results := make([]interface{}, 0)
 
 	for _, prop := range properties {
 		addressInfo := strings.ReplaceAll(prop.AddressInfo, "-", "")
 		address := prop.City + addressInfo + prop.CommunityName
-		result, err := gaoDeService.Geocode(address)
-
-		//这里需要判断这条数据是否在数据库中已经存在了。
-		//	如果已经存在
-		//		判断房价是否为0
-		//         房价为0 那么直接赋值房价数据
-		//         房价不为0 那么取二者的平均值
-		//	如果不存在的话，还需要增加房价的数据放到其中
-		//		那么直接赋值房价数据
-
+		geocodes, err := gaoDeService.Geocode(address)
 		if err != nil {
-			fmt.Println("地理编码失败:", err)
-			c.Set("error", "地理编码失败")
-			return
+			service.LogInfo(err)
+			continue // 继续下一次循环
 		}
 
-		if m, ok := result[0].(map[string]interface{}); ok {
-			results = append(results, m)
-		} else {
-			c.Set("error", "无法转换地理编码结果}")
-			return
-		}
+		for _, geocode := range geocodes {
+			result := make(map[string]interface{})
+			if m, ok := geocode.(map[string]interface{}); ok {
+				m["price_per_sqm"] = prop.PricePerSqm // 将价格赋给result
+				result = m
+			} else {
+				service.LogInfo("：无法转换地理编码数据")
+				continue // 继续下一次循环
+			}
 
-		err = storeData(c, esClient, "poi_data_2023", result)
-		if err != nil {
-			fmt.Printf("Failed to store data in Elasticsearch: %v", err)
-			c.Set("error", "无法存储数据到Elasticsearch")
-			return
+			err = storeData(c, esClient, "poi_data_2023", []interface{}{result})
+			if err != nil {
+				fmt.Printf("Failed to store data in Elasticsearch: %v", err)
+				c.Set("error", "无法存储数据到Elasticsearch")
+				return
+			}
+			results = append(results, result)
 		}
 	}
 

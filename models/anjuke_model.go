@@ -2,6 +2,7 @@ package models
 
 import (
 	_ "github.com/go-sql-driver/mysql"
+	"mvc/service"
 	// 	"database/sql"
 	// 	"fmt"
 	"mvc/utils"
@@ -23,10 +24,11 @@ type PropertyData struct {
 
 func GetOriginData() ([]PropertyData, error) {
 	db := utils.GetDB2()
-	query := "SELECT * FROM djangoproject_propertydata WHERE deal = '0' LIMIT 2"
+	query := "SELECT id,year_info,community_name,address_info,price_per_sqm,page_number,deal,city,qu_text,created_at,updated_at FROM djangoproject_propertydata WHERE deal = '0' LIMIT 2"
 
 	rows, err := db.Query(query)
 	if err != nil {
+		service.LogInfo(err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -47,12 +49,14 @@ func GetOriginData() ([]PropertyData, error) {
 			&prop.UpdatedAt,
 		)
 		if err != nil {
+			service.LogInfo(err)
 			return nil, err
 		}
 		properties = append(properties, prop)
 	}
 
 	if err := rows.Err(); err != nil {
+		service.LogInfo(err)
 		return nil, err
 	}
 

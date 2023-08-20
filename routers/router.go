@@ -29,7 +29,8 @@ func SetupRouter(router *gin.Engine) {
 	router.GET("/produce", controllers.TestEnvProduce)
 	router.GET("/consume", controllers.TestEnvConsume)
 
-	router.GET("/propertydata", controllers.EsEnv)
+	//把mysql的房源数据导入到es中
+	router.GET("/propertydata", controllers.ImportMysqlHoseDataToES)
 
 	// poi 查询
 	router.GET("/poi_around", controllers.PoiAround)
@@ -40,8 +41,6 @@ func SetupRouter(router *gin.Engine) {
 	router.POST("/kafka/consume", kafka.ConsumeMessages)
 	// 添加其他路由...
 	// 注意：此处不需要返回任何内容，因为我们是直接修改传入的 `router` 对象
-
-	//触发加入生产者
 
 }
 
