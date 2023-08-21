@@ -217,8 +217,16 @@ func ImportMysqlHoseDataToES(c *gin.Context) {
 	results := make([]interface{}, 0)
 
 	for _, prop := range properties {
-		addressInfo := strings.ReplaceAll(prop.AddressInfo, "-", "")
-		address := prop.City + addressInfo + prop.CommunityName
+		addressInfo := ""
+		if prop.AddressInfo != nil {
+			addressInfo = strings.ReplaceAll(*prop.AddressInfo, "-", "")
+		}
+		address := ""
+		if prop.City != nil && prop.CommunityName != nil {
+			address = *prop.City + addressInfo + *prop.CommunityName
+		} else {
+			continue // 继续下一次循环
+		}
 		geocodes, err := gaoDeService.Geocode(address)
 		if err != nil {
 			service.LogInfo(err)
@@ -229,9 +237,22 @@ func ImportMysqlHoseDataToES(c *gin.Context) {
 			result := make(map[string]interface{})
 			if m, ok := geocode.(map[string]interface{}); ok {
 				m["price_per_sqm"] = prop.PricePerSqm // 将价格赋给result
+				m["households"] = prop.HouseHolds     // 将户数数据赋给result
 				result = m
 			} else {
 				service.LogInfo("：无法转换地理编码数据")
+				continue // 继续下一次循环
+			}
+
+			duplicateData, err := findDuplicateData(esClient, "poi_data_2023", result)
+			if err != nil {
+				fmt.Printf("Failed to query duplicate data: %v", err)
+				c.Set("error", "查询重复数据失败")
+				return
+			}
+
+			if len(duplicateData) > 0 {
+				service.LogInfo("发现重复数据，存储操作被中止")
 				continue // 继续下一次循环
 			}
 
@@ -239,6 +260,13 @@ func ImportMysqlHoseDataToES(c *gin.Context) {
 			if err != nil {
 				fmt.Printf("Failed to store data in Elasticsearch: %v", err)
 				c.Set("error", "无法存储数据到Elasticsearch")
+				return
+			}
+			// 存储成功的话从mysql 数据库中删除这条数据
+			err = prop.Delete()
+			if err != nil {
+				fmt.Printf("Failed to delete data from MySQL: %v", err)
+				c.Set("error", "无法从MySQL删除数据")
 				return
 			}
 			results = append(results, result)
@@ -249,4 +277,59 @@ func ImportMysqlHoseDataToES(c *gin.Context) {
 		"message": "属性数据获取成功",
 		"data":    results,
 	})
+}
+
+/**
+ * findDuplicateData 判断是否在es中已经有了这条数据
+ *
+ *
+ * @param
+ *
+ * @return
+ */
+func findDuplicateData(esClient *elasticsearch.Client, index string, data map[string]interface{}) ([]map[string]interface{}, error) {
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					{"term": map[string]interface{}{"location.keyword": data["location"]}},
+					{"term": map[string]interface{}{"formatted_address.keyword": data["formatted_address"]}},
+					{"term": map[string]interface{}{"price_per_sqm": data["price_per_sqm"]}},
+				},
+			},
+		},
+	}
+
+	queryJSON, err := json.Marshal(query)
+	if err != nil {
+		return nil, err
+	}
+
+	searchRequest := esapi.SearchRequest{
+		Index: []string{index},
+		Body:  bytes.NewReader(queryJSON),
+	}
+
+	res, err := searchRequest.Do(context.Background(), esClient)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		return nil, fmt.Errorf("查询重复数据失败。响应状态：%s", res.Status())
+	}
+
+	var resultData map[string]interface{}
+	if err := json.NewDecoder(res.Body).Decode(&resultData); err != nil {
+		return nil, err
+	}
+
+	hits := resultData["hits"].(map[string]interface{})["hits"].([]interface{})
+	duplicateData := make([]map[string]interface{}, len(hits))
+	for i, hit := range hits {
+		duplicateData[i] = hit.(map[string]interface{})["_source"].(map[string]interface{})
+	}
+
+	return duplicateData, nil
 }
