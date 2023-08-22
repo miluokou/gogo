@@ -132,8 +132,8 @@ func prepareBulkPayload(data []map[string]interface{}) []byte {
 			service.LogInfo(errorMsg.Error())
 			continue
 		}
-
-		if len(existingData) > 0 {
+		pois := existingData.POIs
+		if len(pois) > 0 {
 			service.LogInfo("已经有这条数据了，跳过了存储")
 			// Data already exists, skip storage
 			continue
@@ -258,9 +258,10 @@ func ImportMysqlHoseDataToES(c *gin.Context) {
 
 			err = storeData(c, esClient, "poi_data_2023", []interface{}{result})
 			if err != nil {
+				service.LogInfo(result)
 				fmt.Printf("Failed to store data in Elasticsearch: %v", err)
 				c.Set("error", "无法存储数据到Elasticsearch")
-				return
+				//return
 			}
 			// 存储成功的话从mysql 数据库中删除这条数据
 			err = prop.Delete()

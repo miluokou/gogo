@@ -63,8 +63,6 @@ func storeData(esClient *elasticsearch.Client, index string, data []interface{})
 			return errors.New("无效的数据格式")
 		}
 	}
-	LogInfo("index 的值是")
-	LogInfo(index)
 
 	prepareData := bytes.NewReader(prepareBulkPayload(poiData))
 	bulkRequest := esapi.BulkRequest{
@@ -127,8 +125,9 @@ func prepareBulkPayload(data []map[string]interface{}) []byte {
 			LogInfo(errorMsg.Error())
 			continue
 		}
+		pois := existingData.POIs
 
-		if len(existingData) > 0 {
+		if len(pois) > 0 {
 			LogInfo("已经有这条数据了，跳过了存储")
 			// Data already exists, skip storage
 			continue

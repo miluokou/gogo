@@ -56,11 +56,33 @@ func ResponseMiddleware() gin.HandlerFunc {
 			return
 		}
 
+		count, ok := c.Keys["count"].(int)
+		if !ok {
+			count = 0
+		}
+
+		householdsAvg, ok := c.Keys["households_avg"]
+		if !ok {
+			householdsAvg = 0
+		}
+
+		pricePerSqMAvg, ok := c.Keys["price_per_sqm_avg"]
+		if !ok {
+			pricePerSqMAvg = 0
+		}
+
+		data, ok := c.Keys["response"]
+		if !ok {
+			data = []interface{}{}
+		}
 		// 封装正常返回的格式
 		response := gin.H{
-			"code":    http.StatusOK,
-			"message": "OK",
-			"data":    c.Keys["response"],
+			"code":              http.StatusOK,
+			"message":           "OK",
+			"count":             count,
+			"households_avg":    householdsAvg,
+			"price_per_sqm_avg": pricePerSqMAvg,
+			"data":              data,
 		}
 		c.JSON(http.StatusOK, response)
 	}
