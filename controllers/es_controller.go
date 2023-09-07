@@ -67,8 +67,6 @@ func storeData(c *gin.Context, esClient *elasticsearch.Client, index string, dat
 			return errors.New("无效的数据格式")
 		}
 	}
-	service.LogInfo("index 的值是")
-	service.LogInfo(index)
 
 	prepareData := bytes.NewReader(prepareBulkPayload(poiData))
 	bulkRequest := esapi.BulkRequest{
@@ -80,7 +78,7 @@ func storeData(c *gin.Context, esClient *elasticsearch.Client, index string, dat
 	res, err := bulkRequest.Do(context.Background(), esClient)
 	if err != nil {
 		errorMsg := fmt.Errorf("存储数据到Elasticsearch失败：%v", err)
-		service.LogInfo(errorMsg.Error())
+		//service.LogInfo(errorMsg.Error())
 		return errorMsg
 	}
 	defer func() {

@@ -27,6 +27,7 @@ func GetOriginData() ([]PropertyData, error) {
 
 	rows, err := db.Query(query)
 	if err != nil {
+		service.LogInfo("3")
 		service.LogInfo(err)
 		return nil, err
 	}

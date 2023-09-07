@@ -3,6 +3,7 @@ package routers
 import (
 	"github.com/gin-gonic/gin"
 	"mvc/controllers"
+	"mvc/controllers/around"
 	"mvc/controllers/kafka"
 	"net/http"
 )
@@ -39,6 +40,9 @@ func SetupRouter(router *gin.Engine) {
 	router.GET("/get_topic", kafka.GetTopics)
 	router.POST("/kafka/produce", kafka.ProduceMessage)
 	router.POST("/kafka/consume", kafka.ConsumeMessages)
+
+	//附近交通情况
+	router.POST("/around/traffic/conditions", around.TrafficConditions)
 	// 添加其他路由...
 	// 注意：此处不需要返回任何内容，因为我们是直接修改传入的 `router` 对象
 
