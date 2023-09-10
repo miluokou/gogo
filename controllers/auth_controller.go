@@ -156,9 +156,8 @@ func WeChatLogin(c *gin.Context) {
 		handleError(c, "读取响应内容失败："+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	fmt.Printf("微信返回的信息-----：%s\n", string(body))
-	service.LogInfo("WeChatLogin body")
-	service.LogInfo(body)
+	service.LogInfo("WeChatLogin body 微信返回信息")
+	service.LogInfo(string(body))
 	var data struct {
 		SessionKey string `json:"session_key"`
 		OpenID     string `json:"openid"`
@@ -175,6 +174,7 @@ func WeChatLogin(c *gin.Context) {
 		return
 	}
 	service.LogInfo("WeChatLogin")
+	service.LogInfo("session_key是" + data.SessionKey)
 	fmt.Printf("session_key是：%s\n", data.SessionKey)
 	if data.OpenID == "" {
 		handleError(c, "无法获取openid", http.StatusInternalServerError)
