@@ -43,6 +43,10 @@ func SetupRouter(router *gin.Engine) {
 
 	//附近交通情况
 	router.POST("/around/traffic/conditions", around.TrafficConditions)
+
+	//10 添加点位
+	router.POST("/addPoints", around.AddPoints)
+
 	// 添加其他路由...
 	// 注意：此处不需要返回任何内容，因为我们是直接修改传入的 `router` 对象
 

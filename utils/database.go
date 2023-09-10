@@ -26,8 +26,8 @@ func InitDatabase() {
 	}
 
 	// 设置数据库连接池最大连接数
-	db.SetMaxOpenConns(10)
-	db2.SetMaxOpenConns(10)
+	db.SetMaxOpenConns(20)
+	db2.SetMaxOpenConns(20)
 
 	// 检查数据库连接是否正常
 	if err = db.Ping(); err != nil {

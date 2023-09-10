@@ -67,10 +67,6 @@ func getTrafficConditions(location string, radius int) (*Data, error) {
 	if err != nil {
 		return nil, err
 	}
-	service.LogInfo("距离最近地铁站时间")
-	service.LogInfo(footsubwayTimeMin)
-	service.LogInfo("距离最近地铁站所请求的poi数据")
-	service.LogInfo(urlsubway)
 
 	data.FootsubwayTimeMin = footsubwayTimeMin
 
@@ -80,10 +76,6 @@ func getTrafficConditions(location string, radius int) (*Data, error) {
 		return nil, err
 	}
 	data.DriveTrainTimeMin = driveTrainTimeMin
-	service.LogInfo("驾车到火车站时间")
-	service.LogInfo("到火车站的poi的url")
-	service.LogInfo(urlTrain)
-	service.LogInfo(driveTrainTimeMin)
 
 	urlPlane := fmt.Sprintf("https://restapi.amap.com/v3/place/around?types=150100&location=%s&key=%s&radius=%d", location, apiKey, radius)
 	drivePlaneTimeMin, err := checkTravelTime(location, radius, urlPlane, "driving")
@@ -91,10 +83,6 @@ func getTrafficConditions(location string, radius int) (*Data, error) {
 		return nil, err
 	}
 	data.DrivePlaneTimeMin = drivePlaneTimeMin
-	service.LogInfo("驾车到飞机场时间")
-	service.LogInfo("到飞机场的poi的url")
-	service.LogInfo(urlPlane)
-	service.LogInfo(driveTrainTimeMin)
 	return data, nil
 }
 

@@ -5,16 +5,16 @@ package controllers
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
-	"io/ioutil"
-	"net/http"
 	"errors"
-	"mvc/models"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
+	"io/ioutil"
+	"mvc/models"
+	"mvc/service"
+	"net/http"
 	"sync"
 	"time"
-	"mvc/service"
 )
 
 type WeChatLoginRequest struct {
@@ -31,11 +31,13 @@ type WeChatLoginResponse struct {
 	Error       string `json:"error"`
 	Token       string `json:"token"`
 }
+
 var (
 	wxAccessTokenCache     string
 	wxAccessTokenExpiresAt time.Time
 	wxAccessTokenMutex     sync.Mutex
 )
+
 func getStableAccessToken() string {
 	wxAccessTokenMutex.Lock()
 	defer wxAccessTokenMutex.Unlock()
@@ -43,7 +45,7 @@ func getStableAccessToken() string {
 	if wxAccessTokenCache != "" && wxAccessTokenExpiresAt.After(time.Now()) {
 		return wxAccessTokenCache
 	}
-	
+
 	// 获取微信登录的配置信息
 	appID := viper.GetString("wechat.app_id")
 	appSecret := viper.GetString("wechat.app_secret")
@@ -93,15 +95,15 @@ func getWxPhoneNumber(phoneCode, encryptedData, iv, sessionKey string) (string, 
 	url := fmt.Sprintf("https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token=%s", getStableAccessToken())
 	// 构造请求体
 	reqBody := map[string]string{
-		"code":phoneCode,
-// 		"encryptedData": encryptedData,
-// 		"iv":            iv,
+		"code": phoneCode,
+		// 		"encryptedData": encryptedData,
+		// 		"iv":            iv,
 	}
 	reqBodyBytes, err := json.Marshal(reqBody)
 	if err != nil {
 		return "", err
 	}
-	
+
 	// 发送 HTTP POST 请求解密用户手机号码
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(reqBodyBytes))
 	if err != nil {
@@ -113,7 +115,7 @@ func getWxPhoneNumber(phoneCode, encryptedData, iv, sessionKey string) (string, 
 	if err != nil {
 		return "", err
 	}
-    // fmt.Printf("getWxPhoneNumber方法中请求微信接口返回的 response body: %s\n", string(body)) // 打印返回值
+	// fmt.Printf("getWxPhoneNumber方法中请求微信接口返回的 response body: %s\n", string(body)) // 打印返回值
 	var data map[string]interface{}
 	if err := json.Unmarshal(body, &data); err != nil {
 		return "", err
@@ -143,38 +145,40 @@ func WeChatLogin(c *gin.Context) {
 
 	resp, err := http.Get(url)
 	if err != nil {
+		service.LogInfo("无法获取微信登录信息：" + err.Error())
 		handleError(c, "无法获取微信登录信息："+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer resp.Body.Close()
-
+	service.LogInfo("WeChatLogin")
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		handleError(c, "读取响应内容失败："+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	fmt.Printf("微信返回的信息-----：%s\n", string(body))
-
+	service.LogInfo("WeChatLogin")
 	var data struct {
 		SessionKey string `json:"session_key"`
 		OpenID     string `json:"openid"`
 	}
+	service.LogInfo("WeChatLogin")
 	if err := json.Unmarshal(body, &data); err != nil {
 		handleError(c, "解析JSON失败："+err.Error(), http.StatusInternalServerError)
 		return
 	}
-
+	service.LogInfo("WeChatLogin")
 	if data.SessionKey == "" {
 		handleError(c, "无法获取session_key", http.StatusInternalServerError)
 		return
 	}
-
+	service.LogInfo("WeChatLogin")
 	fmt.Printf("session_key是：%s\n", data.SessionKey)
 	if data.OpenID == "" {
 		handleError(c, "无法获取openid", http.StatusInternalServerError)
 		return
 	}
-
+	service.LogInfo("WeChatLogin")
 	fmt.Printf("openid是：%s\n", data.OpenID)
 
 	phoneNumber, err := getWxPhoneNumber(req.PhoneCode, req.EncryptedData, req.IV, data.SessionKey)
@@ -182,44 +186,44 @@ func WeChatLogin(c *gin.Context) {
 		handleError(c, "解密用户手机号码失败："+err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-    haveSaveUser, err := models.GetUserByPhoneNumber(phoneNumber);
+	service.LogInfo("WeChatLogin")
+	haveSaveUser, err := models.GetUserByPhoneNumber(phoneNumber)
 	if err == nil {
-	    if haveSaveUser.ID != 0 {
-	        if haveSaveUser.OpenId  != data.OpenID {
-    	        haveSaveUser.OpenId = data.OpenID;
-    	        if _,err := models.UpdateUser(haveSaveUser); err != nil {
-    	            fmt.Printf("Error: %s\n", err.Error())
-    	            handleError(c, "openId或其他字段更新失败", http.StatusInternalServerError)
-    			    return
-    	        }
-    	    }
-	    } else {
-    		newUser := models.User{
-    			Name:        "John Doe",
-    			Email:       "johndoe@example.com",
-    			PhoneNumber: phoneNumber,
-    			OpenId: data.OpenID,
-    		}
-    		if _, err := models.CreateUser(newUser); err != nil {
-    			handleError(c, "新增用户失败", http.StatusInternalServerError)
-    			return
-    		}	        
-	    }
+		if haveSaveUser.ID != 0 {
+			if haveSaveUser.OpenId != data.OpenID {
+				haveSaveUser.OpenId = data.OpenID
+				if _, err := models.UpdateUser(haveSaveUser); err != nil {
+					fmt.Printf("Error: %s\n", err.Error())
+					handleError(c, "openId或其他字段更新失败", http.StatusInternalServerError)
+					return
+				}
+			}
+		} else {
+			newUser := models.User{
+				Name:        "John Doe",
+				Email:       "johndoe@example.com",
+				PhoneNumber: phoneNumber,
+				OpenId:      data.OpenID,
+			}
+			if _, err := models.CreateUser(newUser); err != nil {
+				handleError(c, "新增用户失败", http.StatusInternalServerError)
+				return
+			}
+		}
 	} else {
-	    handleError(c, "查询用户的时候异常了", http.StatusInternalServerError)
-	    return
+		handleError(c, "查询用户的时候异常了", http.StatusInternalServerError)
+		return
 	}
-
+	service.LogInfo("WeChatLogin")
 	secretKey := "your_secret_key"
 	salt := "your_salt"
-
+	service.LogInfo("WeChatLogin")
 	jwtController, err := service.NewJWTController(secretKey, salt)
 	if err != nil {
 		handleError(c, "创建JWTController失败："+err.Error(), http.StatusInternalServerError)
 		return
 	}
-
+	service.LogInfo("WeChatLogin")
 	token, err := jwtController.GenerateToken(haveSaveUser.ID, time.Hour*24*7) // 假设用户ID为123，有效期为24小时
 	if err != nil {
 		handleError(c, "生成令牌失败："+err.Error(), http.StatusInternalServerError)
@@ -227,7 +231,7 @@ func WeChatLogin(c *gin.Context) {
 	}
 	fmt.Println("生成的token是hfudihfsidh：", token)
 	fmt.Println("data.OpenID 的值为：", data.OpenID)
-
+	service.LogInfo("WeChatLogin")
 	c.JSON(http.StatusOK, WeChatLoginResponse{
 		OpenID:      data.OpenID,
 		SessionKey:  data.SessionKey,
@@ -241,7 +245,6 @@ func handleError(c *gin.Context, errorMsg string, statusCode int) {
 	c.JSON(statusCode, gin.H{"error": errorMsg})
 }
 
-
 func getUserPhoneNumber(encryptedData, iv, sessionKey string) (string, error) {
 	// 构造解密用户手机号码的 URL
 	url := fmt.Sprintf("https://api.weixin.qq.com/wxa/getphonenumber?access_token=%s", sessionKey)
@@ -251,35 +254,34 @@ func getUserPhoneNumber(encryptedData, iv, sessionKey string) (string, error) {
 		"encryptedData": encryptedData,
 		"iv":            iv,
 	}
-    reqBodyBytes, err := json.Marshal(reqBody)
-    if err != nil {
-    	return "", err
-    }
-    
-    // 发送 HTTP POST 请求解密用户手机号码
-    resp, err := http.Post(url, "application/json", bytes.NewBuffer(reqBodyBytes))
-    if err != nil {
-    	return "", err
-    }
-    defer resp.Body.Close()
-    
-    body, err := ioutil.ReadAll(resp.Body)
-    if err != nil {
-    	return "", err
-    }
-    
-    var data map[string]interface{}
-    if err := json.Unmarshal(body, &data); err != nil {
-    	return "", err
-    }
-    
-    // 检查是否成功获取用户手机号码
-    if _, ok := data["phoneNumber"]; !ok {
-    	errorMsg := fmt.Sprintf("failed to get phone number: %v", data)
-    	fmt.Println(errorMsg) // 输出错误日志到终端
-    	return "", fmt.Errorf(errorMsg)
-    }
+	reqBodyBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", err
+	}
 
-    
-    return data["phoneNumber"].(string), nil
+	// 发送 HTTP POST 请求解密用户手机号码
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(reqBodyBytes))
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	var data map[string]interface{}
+	if err := json.Unmarshal(body, &data); err != nil {
+		return "", err
+	}
+
+	// 检查是否成功获取用户手机号码
+	if _, ok := data["phoneNumber"]; !ok {
+		errorMsg := fmt.Sprintf("failed to get phone number: %v", data)
+		fmt.Println(errorMsg) // 输出错误日志到终端
+		return "", fmt.Errorf(errorMsg)
+	}
+
+	return data["phoneNumber"].(string), nil
 }

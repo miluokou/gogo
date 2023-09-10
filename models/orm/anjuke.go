@@ -21,8 +21,17 @@ func Init() error {
 	}
 
 	// 添加日志语句，用于调试
-	fmt.Println("Database migration successful")
+	fmt.Println("安居客migrate 成功")
 
+	businessDb, err = utils.ConnectBusinessDatabase()
+	if err != nil {
+		return err
+	}
+	err = db.AutoMigrate(&Points{})
+	if err != nil {
+		return err
+	}
+	fmt.Println("业务数据库migrate 成功")
 	return nil
 }
 
