@@ -234,12 +234,18 @@ func WeChatLogin(c *gin.Context) {
 	fmt.Println("生成的token是hfudihfsidh：", token)
 	fmt.Println("data.OpenID 的值为：", data.OpenID)
 	service.LogInfo("WeChatLogin")
-	c.JSON(http.StatusOK, WeChatLoginResponse{
+	c.Set("response", WeChatLoginResponse{
 		OpenID:      data.OpenID,
 		SessionKey:  data.SessionKey,
 		PhoneNumber: phoneNumber,
 		Token:       token,
 	})
+	//c.JSON(http.StatusOK, WeChatLoginResponse{
+	//	OpenID:      data.OpenID,
+	//	SessionKey:  data.SessionKey,
+	//	PhoneNumber: phoneNumber,
+	//	Token:       token,
+	//})
 }
 
 func handleError(c *gin.Context, errorMsg string, statusCode int) {
