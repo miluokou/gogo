@@ -157,7 +157,8 @@ func WeChatLogin(c *gin.Context) {
 		return
 	}
 	fmt.Printf("微信返回的信息-----：%s\n", string(body))
-	service.LogInfo("WeChatLogin")
+	service.LogInfo("WeChatLogin body")
+	service.LogInfo(body)
 	var data struct {
 		SessionKey string `json:"session_key"`
 		OpenID     string `json:"openid"`
@@ -168,6 +169,7 @@ func WeChatLogin(c *gin.Context) {
 		return
 	}
 	service.LogInfo("WeChatLogin")
+	service.LogInfo(data)
 	if data.SessionKey == "" {
 		handleError(c, "无法获取session_key", http.StatusInternalServerError)
 		return
