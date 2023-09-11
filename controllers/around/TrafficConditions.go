@@ -134,9 +134,9 @@ func checkTravelTime(location string, radius int, url string, way string) (int32
 		if busLocation, ok := pois[0].(map[string]interface{})["location"].(string); ok {
 			urlfootBus := fmt.Sprintf("https://restapi.amap.com/v3/direction/%s?origin=%s&destination=%s&key=%s&radius=%d", way, location, busLocation, apiKey, radius)
 			resp, err := http.Get(urlfootBus)
-			service.LogInfo("访问到达目的地的url：")
-			service.LogInfo(urlfootBus)
-			service.LogInfo("访问到达目的地的url结束：")
+			//service.LogInfo("访问到达目的地的url：")
+			//service.LogInfo(urlfootBus)
+			//service.LogInfo("访问到达目的地的url结束：")
 			if err != nil {
 				return 0, err
 			}
@@ -152,16 +152,16 @@ func checkTravelTime(location string, radius int, url string, way string) (int32
 			if err != nil {
 				return 0, err
 			}
-			service.LogInfo("访问到达目的地的url的json转化的result结果打印开始")
-			service.LogInfo(result)
-			service.LogInfo("访问到达目的地的url的json转化的result结果打印结束")
+			//service.LogInfo("访问到达目的地的url的json转化的result结果打印开始")
+			//service.LogInfo(result)
+			//service.LogInfo("访问到达目的地的url的json转化的result结果打印结束")
 
 			route, ok := result["route"].(map[string]interface{})
 			if !ok {
 				return 0, fmt.Errorf("Failed to parse route")
 			}
-			service.LogInfo("如果已经请求到这里说明已经获取到了route")
-			service.LogInfo(route)
+			//service.LogInfo("如果已经请求到这里说明已经获取到了route")
+			//service.LogInfo(route)
 			footbusTimeSec := calculateDuration(route)
 			//footbusTimeMin = int(math.Round(float64(footbusTimeSec / 60)))
 			footbusTimeMin = int(math.Ceil(float64(footbusTimeSec) / 60))
