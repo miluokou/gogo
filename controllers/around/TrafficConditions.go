@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math"
-	"mvc/service"
 	"net/http"
 	"strconv"
 
@@ -55,8 +54,8 @@ func getTrafficConditions(location string, radius int) (*Data, error) {
 
 	urlbus := fmt.Sprintf("https://restapi.amap.com/v3/place/around?types=150700&location=%s&key=%s&radius=%d", location, apiKey, radius)
 	footbusTimeMin, err := checkTravelTime(location, 5000, urlbus, "walking")
-	service.LogInfo("距离最近公交车时间")
-	service.LogInfo(footbusTimeMin)
+	//service.LogInfo("距离最近公交车时间")
+	//service.LogInfo(footbusTimeMin)
 	if err != nil {
 		return nil, err
 	}
@@ -97,8 +96,8 @@ func calculateDuration(route map[string]interface{}) int {
 		if err != nil {
 			duration = 0 // 转换失败时设置默认值为0
 		}
-		service.LogInfo("calculateDuration 中 计算出来的时间是")
-		service.LogInfo(duration)
+		//service.LogInfo("calculateDuration 中 计算出来的时间是")
+		//service.LogInfo(duration)
 		subPaths, ok := pathMap["steps"].(map[string]interface{})
 		if ok {
 			durationSum += calculateDuration(subPaths)
@@ -127,8 +126,8 @@ func checkTravelTime(location string, radius int, url string, way string) (int32
 	if err != nil {
 		return 0, err
 	}
-	service.LogInfo("看是否取到了poi 数据")
-	service.LogInfo(result["pois"])
+	//service.LogInfo("看是否取到了poi 数据")
+	//service.LogInfo(result["pois"])
 	footbusTimeMin := 0
 	if pois, ok := result["pois"].([]interface{}); ok && len(pois) > 0 {
 		if busLocation, ok := pois[0].(map[string]interface{})["location"].(string); ok {
