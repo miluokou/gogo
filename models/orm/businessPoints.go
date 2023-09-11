@@ -11,6 +11,7 @@ var businessDb *gorm.DB
 
 type Points struct {
 	gorm.Model
+	UserID     uint       `json:"user_id"`
 	Location   string     `json:"location"`
 	Radius     string     `json:"radius"`
 	PointsName string     `json:"points_name"`
@@ -22,15 +23,16 @@ type Points struct {
 }
 
 // 新增函数：将数据存储到数据库中
-func CreatePoint(location, radius string, isFavorite int8, pointsName, address *string) (*Points, error) {
+func CreatePoint(uid uint, location, radius string, isFavorite int8, pointsName, address *string) (*Points, error) {
 	err := Init()
 	if err != nil {
 		// 处理初始化错误
 		return nil, err
 	}
 
-	service.LogInfo("已经执行到了CreatePoint 方法22222")
+	service.LogInfo("已经执行到了CreatePoint方法22222")
 	point := Points{
+		UserID:     uid,
 		Location:   location,
 		Radius:     radius,
 		IsFavorite: isFavorite,
@@ -43,10 +45,10 @@ func CreatePoint(location, radius string, isFavorite int8, pointsName, address *
 	if address != nil {
 		point.Address = *address
 	}
-	service.LogInfo("businessDb.Create 之前，看看之后有没有日志，没有的话说明有问题")
+	service.LogInfo("businessDb.Create之前，看看之后有没有日志，没有的话说明有问题")
 	result := businessDb.Create(&point)
 	if result.Error != nil {
-		service.LogInfo("打印存储点位的时候的异常日志")
+		service.LogInfo("打印存储点位时的异常日志")
 		service.LogInfo(result.Error)
 		return nil, result.Error
 	}

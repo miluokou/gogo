@@ -219,7 +219,6 @@ func WeChatLogin(c *gin.Context) {
 	service.LogInfo("WeChatLogin")
 	secretKey := "your_secret_key"
 	salt := "your_salt"
-	service.LogInfo("WeChatLogin")
 	jwtController, err := service.NewJWTController(secretKey, salt)
 	if err != nil {
 		handleError(c, "创建JWTController失败："+err.Error(), http.StatusInternalServerError)
