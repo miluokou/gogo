@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"mvc/controllers"
 	"mvc/controllers/around"
+	"mvc/controllers/job"
 	"mvc/controllers/kafka"
 	"net/http"
 )
@@ -46,6 +47,9 @@ func SetupRouter(router *gin.Engine) {
 
 	//10 添加点位
 	router.POST("/addPoints", around.AddPoints)
+
+	//11 暂无数据的任务添加
+	router.POST("/addNoDataJobs", job.AddNoDataJobs)
 
 	// 添加其他路由...
 	// 注意：此处不需要返回任何内容，因为我们是直接修改传入的 `router` 对象

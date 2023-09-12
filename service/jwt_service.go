@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	jwt "gopkg.in/dgrijalva/jwt-go.v3"
@@ -12,6 +13,10 @@ import (
 type CustomClaims struct {
 	jwt.StandardClaims
 	UserID uint `json:"user_id"`
+}
+
+type Uid struct {
+	Uid uint // 高德地图API密钥
 }
 
 // JWTController 结构体
@@ -79,4 +84,17 @@ func (c *JWTController) RefreshToken(tokenString string, expireDuration time.Dur
 	claims.StandardClaims.ExpiresAt = expireTime
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(c.SecretKey)
+}
+
+func GetUidByToken(token string) (uint, error) {
+	secretKey := "your_secret_key"
+	salt := "your_salt"
+	jwtController, err := NewJWTController(secretKey, salt)
+
+	claims, err := jwtController.VerifyToken(strings.TrimPrefix(token, "Bearer "))
+	if err != nil {
+		return 0, err
+	}
+
+	return claims.UserID, nil
 }
