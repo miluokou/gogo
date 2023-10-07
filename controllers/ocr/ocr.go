@@ -12,12 +12,6 @@ import (
 	"strings"
 )
 
-func main() {
-	r := gin.Default()
-	r.POST("/convert", ConvertToExcel)
-	r.Run(":8080")
-}
-
 func ConvertToExcel(c *gin.Context) {
 	imagePath := "test.png"     // 图像文件路径
 	outputFile := "output.xlsx" // 输出的Excel文件路径
