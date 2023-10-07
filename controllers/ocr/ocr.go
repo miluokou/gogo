@@ -4,8 +4,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"golang.org/x/text/encoding/unicode"
-	"golang.org/x/text/transform"
+	"golang.org/x/net/html/charset"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -60,12 +59,17 @@ func runTesseractOCR(imagePath string, language string) (string, error) {
 }
 
 func convertEncoding(text string) (string, error) {
-	decoder := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM).NewDecoder() // 使用UTF-16解码器
-	utf8Reader := transform.NewReader(strings.NewReader(text), decoder)
+	reader := strings.NewReader(text)
+	utf8Reader, err := charset.NewReader(reader, "")
+	if err != nil {
+		return "", err
+	}
+
 	utf8Bytes, err := ioutil.ReadAll(utf8Reader)
 	if err != nil {
 		return "", err
 	}
+
 	utf8Text := string(utf8Bytes)
 	return utf8Text, nil
 }
