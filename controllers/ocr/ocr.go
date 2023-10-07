@@ -37,7 +37,7 @@ func ConvertToExcel(c *gin.Context) {
 	cell := row.AddCell()
 
 	// 将文本转换为UTF-8编码
-	utf8Text, err := gbkToUtf8(text)
+	utf8Text, err := convertEncoding(text)
 	if err != nil {
 		fmt.Println(err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "无法转换文本编码"})
@@ -47,7 +47,7 @@ func ConvertToExcel(c *gin.Context) {
 	cell.Value = utf8Text
 
 	// 设置单元格字体为宋体
-	font := xlsx.NewFont(12, "宋体")
+	font := xlsx.NewFont(12, "SimSun")
 	style := xlsx.NewStyle()
 	style.Font = *font
 	cell.SetStyle(style)
@@ -74,8 +74,8 @@ func runTesseractOCR(imagePath string, language string) (string, error) {
 	return string(output), nil
 }
 
-func gbkToUtf8(text string) (string, error) {
-	decoder := simplifiedchinese.GBK.NewDecoder()
+func convertEncoding(text string) (string, error) {
+	decoder := simplifiedchinese.GB18030.NewDecoder()
 	utf8Reader := transform.NewReader(strings.NewReader(text), decoder)
 	utf8Bytes, err := ioutil.ReadAll(utf8Reader)
 	if err != nil {
