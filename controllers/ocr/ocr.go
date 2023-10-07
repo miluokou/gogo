@@ -1,4 +1,4 @@
-package ocr
+package main
 
 import (
 	"fmt"
@@ -11,6 +11,12 @@ import (
 	"os/exec"
 	"strings"
 )
+
+func main() {
+	r := gin.Default()
+	r.POST("/convert", ConvertToExcel)
+	r.Run(":8080")
+}
 
 func ConvertToExcel(c *gin.Context) {
 	imagePath := "test.png"     // 图像文件路径
@@ -75,10 +81,12 @@ func runTesseractOCR(imagePath string, language string) (string, error) {
 }
 
 func gbkToUtf8(text string) (string, error) {
-	encodingTransformer := simplifiedchinese.GBK.NewDecoder()
-	utf8Text, err := ioutil.ReadAll(transform.NewReader(strings.NewReader(text), encodingTransformer))
+	decoder := simplifiedchinese.GBK.NewDecoder()
+	utf8Reader := transform.NewReader(strings.NewReader(text), decoder)
+	utf8Bytes, err := ioutil.ReadAll(utf8Reader)
 	if err != nil {
 		return "", err
 	}
-	return string(utf8Text), nil
+	utf8Text := string(utf8Bytes)
+	return utf8Text, nil
 }
