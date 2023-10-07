@@ -13,7 +13,7 @@ func ConvertToExcel(c *gin.Context) {
 	outputFile := "output.xlsx" // 输出的Excel文件路径
 
 	// 使用tesseract-ocr进行OCR识别
-	text, err := runTesseractOCR(imagePath)
+	text, err := runTesseractOCR(imagePath, "chi_sim") // 使用简体中文语言包
 	if err != nil {
 		fmt.Println(err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "无法执行OCR识别"})
@@ -46,8 +46,8 @@ func ConvertToExcel(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "转换成功"})
 }
 
-func runTesseractOCR(imagePath string) (string, error) {
-	cmd := exec.Command("tesseract", imagePath, "stdout", "--dpi", "300", "-l", "eng") // 使用英语语言包
+func runTesseractOCR(imagePath string, language string) (string, error) {
+	cmd := exec.Command("tesseract", imagePath, "stdout", "--dpi", "300", "-l", language) // 使用指定语言包
 	output, err := cmd.Output()
 	if err != nil {
 		return "", err
