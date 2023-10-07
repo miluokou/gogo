@@ -1,20 +1,21 @@
 package ocr
 
 import (
+	"encoding/csv"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"github.com/tealeg/xlsx"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"os/exec"
 	"strings"
 )
 
-func ConvertToExcel(c *gin.Context) {
-	imagePath := "test.png"     // 图像文件路径
-	outputFile := "output.xlsx" // 输出的Excel文件路径
+func ConvertToCSV(c *gin.Context) {
+	imagePath := "test.png"    // 图像文件路径
+	outputFile := "output.csv" // 输出的CSV文件路径
 
 	// 使用tesseract-ocr进行OCR识别
 	text, err := runTesseractOCR(imagePath, "chi_sim") // 使用简体中文语言包
@@ -24,18 +25,6 @@ func ConvertToExcel(c *gin.Context) {
 		return
 	}
 
-	// 创建Excel文件
-	file := xlsx.NewFile()
-	sheet, err := file.AddSheet("Sheet1")
-	if err != nil {
-		fmt.Println(err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "无法创建Excel工作表"})
-		return
-	}
-
-	row := sheet.AddRow()
-	cell := row.AddCell()
-
 	// 将文本转换为UTF-8编码
 	utf8Text, err := convertEncoding(text)
 	if err != nil {
@@ -44,22 +33,18 @@ func ConvertToExcel(c *gin.Context) {
 		return
 	}
 
-	cell.Value = utf8Text
+	// 解析文本为CSV数据
+	data := parseTextToCSV(utf8Text)
 
-	// 设置单元格字体为宋体
-	font := xlsx.NewFont(12, "SimSun")
-	style := xlsx.NewStyle()
-	style.Font = *font
-	cell.SetStyle(style)
-
-	err = file.Save(outputFile)
+	// 创建CSV文件并写入数据
+	err = writeDataToCSV(outputFile, data)
 	if err != nil {
 		fmt.Println(err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "无法保存Excel文件"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "无法保存CSV文件"})
 		return
 	}
 
-	fmt.Println("Excel文件保存成功")
+	fmt.Println("CSV文件保存成功")
 
 	// 返回成功响应
 	c.JSON(http.StatusOK, gin.H{"message": "转换成功"})
@@ -83,4 +68,34 @@ func convertEncoding(text string) (string, error) {
 	}
 	utf8Text := string(utf8Bytes)
 	return utf8Text, nil
+}
+
+func parseTextToCSV(text string) [][]string {
+	lines := strings.Split(text, "\n")
+	data := make([][]string, len(lines))
+	for i, line := range lines {
+		fields := strings.Split(line, "\t")
+		data[i] = fields
+	}
+	return data
+}
+
+func writeDataToCSV(filename string, data [][]string) error {
+	file, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	for _, row := range data {
+		err := writer.Write(row)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
