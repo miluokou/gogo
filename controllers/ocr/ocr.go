@@ -4,8 +4,12 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/tealeg/xlsx"
+	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/transform"
+	"io/ioutil"
 	"net/http"
 	"os/exec"
+	"strings"
 )
 
 func ConvertToExcel(c *gin.Context) {
@@ -31,7 +35,16 @@ func ConvertToExcel(c *gin.Context) {
 
 	row := sheet.AddRow()
 	cell := row.AddCell()
-	cell.Value = text
+
+	// 将文本转换为UTF-8编码
+	utf8Text, err := gbkToUtf8(text)
+	if err != nil {
+		fmt.Println(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "无法转换文本编码"})
+		return
+	}
+
+	cell.Value = utf8Text
 
 	err = file.Save(outputFile)
 	if err != nil {
@@ -53,4 +66,13 @@ func runTesseractOCR(imagePath string, language string) (string, error) {
 		return "", err
 	}
 	return string(output), nil
+}
+
+func gbkToUtf8(text string) (string, error) {
+	encodingTransformer := simplifiedchinese.GBK.NewDecoder()
+	utf8Text, err := ioutil.ReadAll(transform.NewReader(strings.NewReader(text), encodingTransformer))
+	if err != nil {
+		return "", err
+	}
+	return string(utf8Text), nil
 }
