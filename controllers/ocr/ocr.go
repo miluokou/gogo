@@ -60,7 +60,7 @@ func runTesseractOCR(imagePath string, language string) (string, error) {
 }
 
 func convertEncoding(text string) (string, error) {
-	decoder := unicode.UTF8.NewDecoder() // 使用UTF-8解码器
+	decoder := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM).NewDecoder() // 使用UTF-16解码器
 	utf8Reader := transform.NewReader(strings.NewReader(text), decoder)
 	utf8Bytes, err := ioutil.ReadAll(utf8Reader)
 	if err != nil {
