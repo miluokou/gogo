@@ -46,6 +46,12 @@ func ConvertToExcel(c *gin.Context) {
 
 	cell.Value = utf8Text
 
+	// 设置单元格字体为宋体
+	font := xlsx.NewFont(12, "宋体")
+	style := xlsx.NewStyle()
+	style.Font = *font
+	cell.SetStyle(style)
+
 	err = file.Save(outputFile)
 	if err != nil {
 		fmt.Println(err)
