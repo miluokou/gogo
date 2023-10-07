@@ -11,7 +11,7 @@ require (
 	github.com/mmcloughlin/geohash v0.10.0
 	github.com/segmentio/kafka-go v0.4.42
 	github.com/spf13/viper v1.16.0
-	github.com/twpayne/go-geom v1.5.2
+	github.com/tealeg/xlsx v1.0.5
 	gopkg.in/dgrijalva/jwt-go.v3 v3.2.0
 	gorm.io/driver/mysql v1.5.1
 	gorm.io/gorm v1.25.2

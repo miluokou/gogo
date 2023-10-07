@@ -6,6 +6,7 @@ import (
 	"mvc/controllers/around"
 	"mvc/controllers/job"
 	"mvc/controllers/kafka"
+	"mvc/generate"
 	"net/http"
 )
 
@@ -51,6 +52,11 @@ func SetupRouter(router *gin.Engine) {
 	//11 暂无数据的任务添加
 	router.POST("/addNoDataJobs", job.AddNoDataJobs)
 
+	//添加文件生成器
+	router.POST("/generate/createAst", generate.CreateAst)
+
+	//ocr识别，图片转化成excel
+	router.POST("/ocr", generate.CreateAst)
 	// 添加其他路由...
 	// 注意：此处不需要返回任何内容，因为我们是直接修改传入的 `router` 对象
 

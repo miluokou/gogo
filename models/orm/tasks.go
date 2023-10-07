@@ -35,7 +35,6 @@ func CreateTask(uid uint, locationID int, mark, dataCompletion, taskType string)
 		DataCompletion: dataCompletion,
 		TaskType:       taskType,
 	}
-	//err = businessDb.AutoMigrate(&Task{})
 
 	result := businessDb.Create(&task)
 	if result.Error != nil {
