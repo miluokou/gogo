@@ -4,8 +4,6 @@ import (
 	"encoding/csv"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"golang.org/x/net/html/charset"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -24,16 +22,8 @@ func ConvertToCSV(c *gin.Context) {
 		return
 	}
 
-	// 将文本转换为UTF-8编码
-	utf8Text, err := convertEncoding(text)
-	if err != nil {
-		fmt.Println(err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "无法转换文本编码"})
-		return
-	}
-
 	// 解析文本为CSV数据
-	data := parseTextToCSV(utf8Text)
+	data := parseTextToCSV(text)
 
 	// 创建CSV文件并写入数据
 	err = writeDataToCSV(outputFile, data)
@@ -58,26 +48,11 @@ func runTesseractOCR(imagePath string, language string) (string, error) {
 	return string(output), nil
 }
 
-func convertEncoding(text string) (string, error) {
-	reader := strings.NewReader(text)
-	utf8Reader, err := charset.NewReader(reader, "")
-	if err != nil {
-		return "", err
-	}
-
-	utf8Bytes, err := ioutil.ReadAll(utf8Reader)
-	if err != nil {
-		return "", err
-	}
-
-	utf8Text := string(utf8Bytes)
-	return utf8Text, nil
-}
-
 func parseTextToCSV(text string) [][]string {
 	lines := strings.Split(text, "\n")
 	data := make([][]string, len(lines))
 	for i, line := range lines {
+		line = strings.TrimSpace(line)
 		fields := strings.Split(line, "\t")
 		data[i] = fields
 	}
