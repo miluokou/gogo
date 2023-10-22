@@ -123,7 +123,7 @@ func prepareBulkPayload(data []map[string]interface{}) []byte {
 		poiData["location"] = location
 
 		poiService, _ := service.NewPOIService()
-		existingData, err := poiService.GetPOIsByLocationAndRadius(lat, lon, 3)
+		existingData, err := poiService.GetPOIsByLocationAndRadius(lat, lon, 5)
 		if err != nil {
 			// Handle the error from GetPOIsByLocationAndRadius
 			errorMsg := fmt.Errorf("Error checking existing data: %v", err)
@@ -227,7 +227,7 @@ func ImportMysqlHoseDataToES(c *gin.Context) {
 		}
 		geocodes, err := gaoDeService.Geocode(address)
 		if err != nil {
-			service.LogInfo(err)
+			//service.LogInfo(err)
 			continue // 继续下一次循环
 		}
 

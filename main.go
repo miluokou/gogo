@@ -14,8 +14,8 @@ import (
 
 func main() {
 
-	// 启动常驻的goroutine
-	go backgroundRoutine()
+	// 启动常驻的goroutine  暂时暂停处理
+	//go backgroundRoutine()
 
 	// 初始化 viper 库
 	viper.SetConfigName("config") // 配置文件名称（无扩展名）
