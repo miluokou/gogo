@@ -119,10 +119,10 @@ func (s *POIService) GetPOIsByLocationAndRadius20231022(latitude, longitude floa
 		locationStr := fmt.Sprintf("%f,%f", longitude, latitude)
 
 		poi := map[string]interface{}{
-			"id":                source["poi_id"].(float64),
-			"formatted_address": source["formatted_address"].(string),
-			"price_per_sqm":     source["price_per_sqm"],
-			"location":          locationStr,
+			//"id":                source["poi_id"].(float64),
+			//"formatted_address": source["formatted_address"].(string),
+			//"price_per_sqm":     source["price_per_sqm"],
+			"location": locationStr,
 		}
 		pois[i] = poi
 

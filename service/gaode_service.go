@@ -3,6 +3,7 @@ package service
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 )
@@ -57,4 +58,40 @@ func (s *AMapService) Geocode(address string) ([]interface{}, error) {
 	}
 
 	return geocodes, nil
+}
+
+func (s *AMapService) ReverseGeocode(latitude, longitude float64) (map[string]interface{}, error) {
+	baseURL := "https://restapi.amap.com/v3/geocode/regeo"
+	apiURL, err := url.Parse(baseURL)
+	if err != nil {
+		return nil, err
+	}
+
+	queryString := apiURL.Query()
+	queryString.Set("key", s.APIKey)
+	queryString.Set("location", fmt.Sprintf("%.6f,%.6f", longitude, latitude))
+
+	apiURL.RawQuery = queryString.Encode()
+	resp, err := http.Get(apiURL.String())
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, errors.New("获取逆地理编码数据失败1")
+	}
+
+	var result map[string]interface{}
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	if err != nil {
+		return nil, err
+	}
+	//LogInfo(result)
+	regeocodes, ok := result["regeocode"].(map[string]interface{})
+	if !ok {
+		return nil, errors.New("无法提取逆地理编码数据2")
+	}
+
+	return regeocodes, nil
 }

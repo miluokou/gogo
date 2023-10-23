@@ -10,7 +10,6 @@ import (
 	"github.com/elastic/go-elasticsearch/v8/esapi"
 	"github.com/mmcloughlin/geohash"
 	"log"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -56,8 +55,10 @@ func StoreData20231022(index string, data [][]string) error {
 		}
 		poiData = append(poiData, item)
 	}
-
-	prepareData := bytes.NewReader(prepareBulkPayload20231022(poiData))
+	prepareDataBefore := prepareBulkPayload20231022(poiData)
+	//LogInfo("准备好的数据格式是")
+	//LogInfo(prepareDataBefore)
+	prepareData := bytes.NewReader(prepareDataBefore)
 	bulkRequest := esapi.BulkRequest{
 		Index:   index,
 		Body:    prepareData,
@@ -110,17 +111,13 @@ func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 		poiData["location"] = location
 
 		poiService, _ := NewPOIService20231022()
-		LogInfo("经度是")
-		LogInfo(lon)
-		LogInfo("纬度是")
-		LogInfo(lat)
 		existingData, err := poiService.GetPOIsByLocationAndRadius20231022(lat, lon, 5000)
 		if err != nil {
 			// Handle the error from GetPOIsByLocationAndRadius
 			errorMsg := fmt.Errorf("Error checking existing data: %v", err)
 			LogInfo(errorMsg.Error())
 			LogInfo(existingData)
-			os.Exit(1)
+
 			continue
 		}
 		pois := existingData.POIs
@@ -129,6 +126,13 @@ func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 			// Data already exists, skip storage
 			continue
 		}
+		gaoDeService := NewAMapService()
+		regeocodes, _ := gaoDeService.ReverseGeocode(lat, lon)
+		//if err != nil {
+		//	LogInfo("逆地理编码失败")
+		//	continue
+		//}
+		poiData["adcode"] = regeocodes["addressComponent"].(map[string]interface{})["adcode"]
 
 		geoHash := geohash.Encode(lat, lon)
 		poiData["geohash"] = geoHash
