@@ -31,6 +31,9 @@ func createESClient20231022() (*elasticsearch.Client, error) {
 	return elasticsearch.NewClient(cfg)
 }
 
+var StoreData20231022Group sync.WaitGroup
+var StoreData20231022Semaphore = make(chan struct{}, 9)
+
 func StoreData20231022(index string, data [][]string) error {
 	// 将每条记录转换为map[string]interface{}
 	var err error
@@ -59,7 +62,14 @@ func StoreData20231022(index string, data [][]string) error {
 
 		poiData = append(poiData, item)
 	}
+	StoreData20231022Group.Add(1)
+	// 获取信号量，限制并发数量
+	StoreData20231022Semaphore <- struct{}{}
+
 	prepareDataBefore := prepareBulkPayload20231022(poiData)
+
+	<-StoreData20231022Semaphore // 释放信号量，允许下一个请求
+	StoreData20231022Group.Done()
 	//LogInfo("准备好的数据格式是")
 	//LogInfo(prepareDataBefore)
 	prepareData := bytes.NewReader(prepareDataBefore)
@@ -95,7 +105,7 @@ func StoreData20231022(index string, data [][]string) error {
 * 这个方法应该只是拼接一下数据
  */
 var waitGroup sync.WaitGroup
-var semaphore = make(chan struct{}, 10) // 设置并发请求数量为10
+var semaphore = make(chan struct{}, 9) // 设置并发请求数量为10
 
 func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 	var bulkPayload strings.Builder
@@ -121,68 +131,82 @@ func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 		waitGroup.Add(1)
 		// 获取信号量，限制并发数量
 		semaphore <- struct{}{}
-		go func(lat, lon float64, poiData map[string]interface{}) {
-			existingData, err := poiService.GetPOIsByLocationAndRadius20231022(lat, lon, 5000)
+		existingData, err := poiService.GetPOIsByLocationAndRadius20231022(lat, lon, 5000)
 
-			if err != nil {
-				// Handle the error from GetPOIsByLocationAndRadius
-				errorMsg := fmt.Errorf("Error checking existing data: %v", err)
-				LogInfo(errorMsg.Error())
-				LogInfo(existingData)
+		if err != nil {
+			// Handle the error from GetPOIsByLocationAndRadius
+			errorMsg := fmt.Errorf("Error checking existing data: %v", err)
+			LogInfo(errorMsg.Error())
+			LogInfo(existingData)
 
-				return
-			}
+			<-semaphore // 释放信号量，允许下一个请求
+			waitGroup.Done()
 
-			pois := existingData.POIs
-			if len(pois) > 0 {
-				LogInfo("已经有这条数据了，跳过了存储")
-				// Data already exists, skip storage
-				return
-			}
+			continue
+		}
 
-			gaoDeService := NewAMapService()
-			regeocodes, err := gaoDeService.ReverseGeocode(lat, lon)
+		pois := existingData.POIs
+		if len(pois) > 0 {
+			LogInfo("已经有这条数据了，跳过了存储")
+			// Data already exists, skip storage
 
-			defer func() {
-				<-semaphore // 释放信号量，允许下一个请求
-				waitGroup.Done()
-			}()
-			if err != nil {
-				LogInfo("逆地理编码失败")
-				LogInfo(err)
-				return
-			}
-			poiData["adcode"] = regeocodes["addressComponent"].(map[string]interface{})["adcode"]
+			<-semaphore // 释放信号量，允许下一个请求
+			waitGroup.Done()
 
-			geoHash := geohash.Encode(lat, lon)
-			poiData["geohash"] = geoHash
+			continue
+		}
 
-			adcode, ok := poiData["adcode"].(string)
-			if !ok {
-				return // 跳过无效的adcode值
-			}
-			uniqueID := generateUniqueID(adcode)
-			poiData["poi_id"] = uniqueID
+		gaoDeService := NewAMapService()
+		regeocodes, err := gaoDeService.ReverseGeocode(lat, lon)
 
-			documentID := generateDocumentID(adcode)
+		if err != nil {
+			LogInfo("逆地理编码失败")
+			LogInfo(err)
 
-			currentTime := time.Now().Format("2006-01-02 15:04:05")
+			<-semaphore // 释放信号量，允许下一个请求
+			waitGroup.Done()
 
-			poiData["created_at"] = currentTime
-			poiData["updated_at"] = currentTime
+			continue
+		}
+		poiData["adcode"] = regeocodes["addressComponent"].(map[string]interface{})["adcode"]
 
-			poiJSON, err := json.Marshal(poiData)
-			if err != nil {
-				return // 跳过无效的JSON序列化
-			}
+		geoHash := geohash.Encode(lat, lon)
+		poiData["geohash"] = geoHash
 
-			bulkPayload.WriteString(`{"index":{"_index":"poi_2023_01","_id":"`)
-			bulkPayload.WriteString(documentID)
-			bulkPayload.WriteString(`"}}`)
-			bulkPayload.WriteByte('\n')
-			bulkPayload.Write(poiJSON)
-			bulkPayload.WriteByte('\n')
-		}(lat, lon, poiData)
+		adcode, ok := poiData["adcode"].(string)
+		if !ok {
+			<-semaphore // 释放信号量，允许下一个请求
+			waitGroup.Done()
+
+			continue // 跳过无效的adcode值
+		}
+		uniqueID := generateUniqueID(adcode)
+		poiData["poi_id"] = uniqueID
+
+		documentID := generateDocumentID(adcode)
+
+		currentTime := time.Now().Format("2006-01-02 15:04:05")
+
+		poiData["created_at"] = currentTime
+		poiData["updated_at"] = currentTime
+
+		poiJSON, err := json.Marshal(poiData)
+		if err != nil {
+			<-semaphore // 释放信号量，允许下一个请求
+			waitGroup.Done()
+
+			continue // 跳过无效的JSON序列化
+		}
+
+		bulkPayload.WriteString(`{"index":{"_index":"poi_2023_01","_id":"`)
+		bulkPayload.WriteString(documentID)
+		bulkPayload.WriteString(`"}}`)
+		bulkPayload.WriteByte('\n')
+		bulkPayload.Write(poiJSON)
+		bulkPayload.WriteByte('\n')
+
+		<-semaphore // 释放信号量，允许下一个请求
+		waitGroup.Done()
 	}
 
 	waitGroup.Wait() // 等待所有请求完成
