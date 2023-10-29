@@ -91,13 +91,6 @@ func (s *AMapService) ReverseGeocode(latitude, longitude float64) (map[string]in
 	s.PendingCount++
 	s.WaitLock.Unlock()
 
-	defer func() {
-		s.WaitLock.Lock()
-		s.PendingCount--
-		s.WaitCond.Signal() // 释放槽位
-		s.WaitLock.Unlock()
-	}()
-
 	s.RateLimiter.Allow() // 限流
 
 	baseURL := "https://restapi.amap.com/v3/geocode/regeo"
@@ -105,6 +98,13 @@ func (s *AMapService) ReverseGeocode(latitude, longitude float64) (map[string]in
 	if err != nil {
 		return nil, err
 	}
+
+	defer func() {
+		s.WaitLock.Lock()
+		s.PendingCount--
+		s.WaitCond.Signal() // 释放槽位
+		s.WaitLock.Unlock()
+	}()
 
 	queryString := apiURL.Query()
 	queryString.Set("key", s.APIKey)

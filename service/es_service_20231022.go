@@ -119,14 +119,11 @@ func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 
 		poiService, _ := NewPOIService20231022()
 		waitGroup.Add(1)
-		semaphore <- struct{}{} // 获取信号量，限制并发数量
+		// 获取信号量，限制并发数量
+		semaphore <- struct{}{}
 		go func(lat, lon float64, poiData map[string]interface{}) {
-			defer func() {
-				<-semaphore // 释放信号量，允许下一个请求
-				waitGroup.Done()
-			}()
-
 			existingData, err := poiService.GetPOIsByLocationAndRadius20231022(lat, lon, 5000)
+
 			if err != nil {
 				// Handle the error from GetPOIsByLocationAndRadius
 				errorMsg := fmt.Errorf("Error checking existing data: %v", err)
@@ -135,6 +132,7 @@ func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 
 				return
 			}
+
 			pois := existingData.POIs
 			if len(pois) > 0 {
 				LogInfo("已经有这条数据了，跳过了存储")
@@ -144,6 +142,11 @@ func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 
 			gaoDeService := NewAMapService()
 			regeocodes, err := gaoDeService.ReverseGeocode(lat, lon)
+
+			defer func() {
+				<-semaphore // 释放信号量，允许下一个请求
+				waitGroup.Done()
+			}()
 			if err != nil {
 				LogInfo("逆地理编码失败")
 				LogInfo(err)
