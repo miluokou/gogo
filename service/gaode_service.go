@@ -12,21 +12,15 @@ import (
 )
 
 type AMapService struct {
-	APIKey       string       // 高德地图API密钥
-	Concurrent   int          // 最大并发数
-	RateLimiter  *RateLimiter // 速率限制器
-	WaitCond     *sync.Cond   // 条件变量用于等待数据
-	WaitLock     sync.Mutex   // 互斥锁用于保护条件变量
-	PendingCount int          // 等待处理的请求数
-}
-
-func NewAMapService() *AMapService {
-	return &AMapService{
-		APIKey:      "cb3e60dc70d48516d5d19ccaa000ae37",
-		Concurrent:  10, // 最大并发数
-		RateLimiter: NewRateLimiter(10),
-		WaitCond:    sync.NewCond(&sync.Mutex{}),
-	}
+	APIKey        string                   // 高德地图API密钥
+	Concurrent    int                      // 最大并发数
+	RateLimiter   *RateLimiter             // 速率限制器
+	WaitCond      *sync.Cond               // 条件变量用于等待数据
+	WaitLock      sync.Mutex               // 互斥锁用于保护条件变量
+	PendingCount  int                      // 等待处理的请求数
+	Cache         map[string]GeocodeResult // 缓存
+	CacheMutex    sync.RWMutex             // 读写锁用于保护缓存
+	CacheDuration time.Duration            // 缓存过期时间
 }
 
 type RateLimiter struct {
@@ -34,7 +28,19 @@ type RateLimiter struct {
 }
 
 type GeocodeResult struct {
-	RawData map[string]interface{} `json:"-"` // 存储原始数据的 map
+	RawData    map[string]interface{} `json:"-"` // 存储原始数据的 map
+	Expiration time.Time              // 过期时间
+}
+
+func NewAMapService() *AMapService {
+	return &AMapService{
+		APIKey:        "cb3e60dc70d48516d5d19ccaa000ae37",
+		Concurrent:    10, // 最大并发数
+		RateLimiter:   NewRateLimiter(10),
+		WaitCond:      sync.NewCond(&sync.Mutex{}),
+		Cache:         make(map[string]GeocodeResult),
+		CacheDuration: 24 * time.Hour, // 一天的过期时间
+	}
 }
 
 func NewRateLimiter(concurrent int) *RateLimiter {
@@ -86,6 +92,17 @@ func (s *AMapService) Geocode(address string) ([]interface{}, error) {
 }
 
 func (s *AMapService) ReverseGeocode(latitude, longitude float64) (map[string]interface{}, error) {
+	coordinateKey := fmt.Sprintf("%.6f,%.6f", latitude, longitude)
+
+	// 先尝试从缓存中获取数据
+	s.CacheMutex.RLock()
+	cachedResult, ok := s.Cache[coordinateKey]
+	s.CacheMutex.RUnlock()
+
+	if ok && !cachedResult.Expiration.Before(time.Now()) {
+		return cachedResult.RawData, nil
+	}
+
 	s.WaitLock.Lock()
 	if s.PendingCount >= s.Concurrent {
 		s.WaitCond.Wait() // 等待空闲槽位
@@ -96,10 +113,9 @@ func (s *AMapService) ReverseGeocode(latitude, longitude float64) (map[string]in
 	s.RateLimiter.Allow() // 限流
 
 	baseURL := "https://restapi.amap.com/v3/geocode/regeo"
-
-	time.Sleep(time.Duration(rand.Intn(1500)+500) * time.Millisecond) // 随机延迟0.5到2秒
-
 	apiURL, err := url.Parse(baseURL)
+	time.Sleep(time.Duration(rand.Intn(2500)+1000) * time.Millisecond) // 随机延迟0.5到2秒
+
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +131,9 @@ func (s *AMapService) ReverseGeocode(latitude, longitude float64) (map[string]in
 	queryString.Set("key", s.APIKey)
 	queryString.Set("location", fmt.Sprintf("%.6f,%.6f", longitude, latitude))
 
-	apiURL.RawQuery = queryString.Encode()
+	query := queryString.Encode()
+	apiURL.RawQuery = query
+
 	resp, err := http.Get(apiURL.String())
 	if err != nil {
 		return nil, err
@@ -123,7 +141,7 @@ func (s *AMapService) ReverseGeocode(latitude, longitude float64) (map[string]in
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, errors.New("获取逆地理编码数据失败1")
+		return nil, errors.New("获取逆地理编码数据失败")
 	}
 
 	var result map[string]interface{}
@@ -136,8 +154,16 @@ func (s *AMapService) ReverseGeocode(latitude, longitude float64) (map[string]in
 	if !ok {
 		LogInfo("高德返回的结果是:")
 		LogInfo(result)
-		return nil, errors.New("无法提取逆地理编码数据2")
+		return nil, errors.New("无法提取逆地理编码数据")
 	}
+
+	// 将数据存储到缓存中
+	s.CacheMutex.Lock()
+	s.Cache[coordinateKey] = GeocodeResult{
+		RawData:    regeocodes,
+		Expiration: time.Now().Add(s.CacheDuration),
+	}
+	s.CacheMutex.Unlock()
 
 	return regeocodes, nil
 }
