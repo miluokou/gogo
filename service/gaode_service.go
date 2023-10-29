@@ -129,6 +129,8 @@ func (s *AMapService) ReverseGeocode(latitude, longitude float64) (map[string]in
 
 	regeocodes, ok := result["regeocode"].(map[string]interface{})
 	if !ok {
+		LogInfo("高德返回的结果是:")
+		LogInfo(result)
 		return nil, errors.New("无法提取逆地理编码数据2")
 	}
 
