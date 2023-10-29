@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"sync"
+	"time"
 )
 
 type AMapService struct {
@@ -94,6 +96,9 @@ func (s *AMapService) ReverseGeocode(latitude, longitude float64) (map[string]in
 	s.RateLimiter.Allow() // 限流
 
 	baseURL := "https://restapi.amap.com/v3/geocode/regeo"
+
+	time.Sleep(time.Duration(rand.Intn(1500)+500) * time.Millisecond) // 随机延迟0.5到2秒
+
 	apiURL, err := url.Parse(baseURL)
 	if err != nil {
 		return nil, err
