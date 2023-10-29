@@ -45,12 +45,11 @@ func CsvToPoi(c *gin.Context) {
 	}
 
 	var wg sync.WaitGroup
-	mutex := sync.Mutex{}
+	var mutex sync.Mutex
 	var errors []string
 
 	for dirPath, fileNames := range csvFiles {
 		for _, fileName := range fileNames {
-			//将计数器加一，表示有一个 Goroutine 需要等待完成
 			wg.Add(1)
 			go func(dirPath, fileName string) {
 				defer wg.Done()

@@ -41,6 +41,7 @@ func StoreData20231022(index string, data [][]string) error {
 
 	var poiData []map[string]interface{}
 	for _, record := range data {
+		LogInfo(fmt.Sprintf("当前记录长度：%d", len(record)))
 		if len(record) != 8 {
 			return errors.New("无效的数据格式")
 		}
@@ -54,6 +55,9 @@ func StoreData20231022(index string, data [][]string) error {
 			"city":      record[6],
 			"region":    record[7],
 		}
+		LogInfo(fmt.Sprintf("当前记录：%v", record))
+		LogInfo(fmt.Sprintf("当前item记录：%v", item))
+
 		poiData = append(poiData, item)
 	}
 	prepareDataBefore := prepareBulkPayload20231022(poiData)
