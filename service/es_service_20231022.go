@@ -41,7 +41,6 @@ func StoreData20231022(index string, data [][]string) error {
 
 	var poiData []map[string]interface{}
 	for _, record := range data {
-		LogInfo(fmt.Sprintf("当前记录长度：%d", len(record)))
 		if len(record) != 8 {
 			return errors.New("无效的数据格式")
 		}
@@ -139,6 +138,7 @@ func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 		regeocodes, err := gaoDeService.ReverseGeocode(lat, lon)
 		if err != nil {
 			LogInfo("逆地理编码失败")
+			LogInfo(err)
 			continue
 		}
 		poiData["adcode"] = regeocodes["addressComponent"].(map[string]interface{})["adcode"]
