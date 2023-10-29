@@ -18,6 +18,15 @@ type AMapService struct {
 	PendingCount int          // 等待处理的请求数
 }
 
+func NewAMapService() *AMapService {
+	return &AMapService{
+		APIKey:      "cb3e60dc70d48516d5d19ccaa000ae37",
+		Concurrent:  10, // 最大并发数
+		RateLimiter: NewRateLimiter(10),
+		WaitCond:    sync.NewCond(&sync.Mutex{}),
+	}
+}
+
 type RateLimiter struct {
 	TokenBucket chan struct{} // 令牌桶通道
 }
@@ -34,15 +43,6 @@ func NewRateLimiter(concurrent int) *RateLimiter {
 
 func (rl *RateLimiter) Allow() {
 	rl.TokenBucket <- struct{}{}
-}
-
-func NewAMapService() *AMapService {
-	return &AMapService{
-		APIKey:      "cb3e60dc70d48516d5d19ccaa000ae37",
-		Concurrent:  99,
-		RateLimiter: NewRateLimiter(99),
-		WaitCond:    sync.NewCond(&sync.Mutex{}),
-	}
 }
 
 func (s *AMapService) Geocode(address string) ([]interface{}, error) {
