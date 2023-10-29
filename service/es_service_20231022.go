@@ -95,7 +95,7 @@ func StoreData20231022(index string, data [][]string) error {
 * 这个方法应该只是拼接一下数据
  */
 var waitGroup sync.WaitGroup
-var semaphore = make(chan struct{}, 99) // 设置并发请求数量为10
+var semaphore = make(chan struct{}, 10) // 设置并发请求数量为10
 
 func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 	var bulkPayload strings.Builder
