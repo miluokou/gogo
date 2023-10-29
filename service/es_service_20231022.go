@@ -12,6 +12,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -90,6 +91,8 @@ func StoreData20231022(index string, data [][]string) error {
 /**
 * 这个方法应该只是拼接一下数据
  */
+var waitGroup sync.WaitGroup
+
 func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 	var bulkPayload strings.Builder
 
@@ -111,6 +114,7 @@ func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 		poiData["location"] = location
 
 		poiService, _ := NewPOIService20231022()
+		waitGroup.Add(1)
 		existingData, err := poiService.GetPOIsByLocationAndRadius20231022(lat, lon, 5000)
 		if err != nil {
 			// Handle the error from GetPOIsByLocationAndRadius
@@ -126,12 +130,13 @@ func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 			// Data already exists, skip storage
 			continue
 		}
+
 		gaoDeService := NewAMapService()
-		regeocodes, _ := gaoDeService.ReverseGeocode(lat, lon)
-		//if err != nil {
-		//	LogInfo("逆地理编码失败")
-		//	continue
-		//}
+		regeocodes, err := gaoDeService.ReverseGeocode(lat, lon)
+		if err != nil {
+			LogInfo("逆地理编码失败")
+			continue
+		}
 		poiData["adcode"] = regeocodes["addressComponent"].(map[string]interface{})["adcode"]
 
 		geoHash := geohash.Encode(lat, lon)
