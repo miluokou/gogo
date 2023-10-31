@@ -21,14 +21,25 @@ type PlaceSearchResult20231022 struct {
 	Data    []interface{}          `json:"data"`
 }
 
+var esClient20231022 *elasticsearch.Client
+
 func createESClient20231022() (*elasticsearch.Client, error) {
+	if esClient20231022 != nil {
+		return esClient20231022, nil
+	}
+
 	cfg := elasticsearch.Config{
-		Addresses: []string{"http://47.100.242.199:9200"},
-		Username:  "elastic",
+		Addresses: []string{"http://47.100.242.199:9200"}, // 替换为 Elasticsearch 实际的地址
+		Username:  "elastic",                              // 替换为您的 Elasticsearch 用户名
 		Password:  "miluokou",
 	}
 
-	return elasticsearch.NewClient(cfg)
+	client, err := elasticsearch.NewClient(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	return client, nil
 }
 
 var StoreData20231022Group sync.WaitGroup
@@ -37,7 +48,7 @@ var StoreData20231022Semaphore = make(chan struct{}, 9)
 func StoreData20231022(index string, data [][]string) error {
 	// 将每条记录转换为map[string]interface{}
 	var err error
-	esClient, err = createESClient20231022()
+	esClient20231022, err = createESClient20231022()
 	if err != nil {
 		log.Fatalf("无法创建Elasticsearch客户端：%s", err)
 	}
@@ -79,7 +90,7 @@ func StoreData20231022(index string, data [][]string) error {
 		Refresh: "true",
 	}
 
-	res, err := bulkRequest.Do(context.Background(), esClient)
+	res, err := bulkRequest.Do(context.Background(), esClient20231022)
 	if err != nil {
 		errorMsg := fmt.Errorf("StoreData20231022存储数据到Elasticsearch失败：%v", err)
 		LogInfo(errorMsg.Error())

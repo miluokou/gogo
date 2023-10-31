@@ -8,6 +8,7 @@ import (
 	"mvc/controllers/kafka"
 	"mvc/controllers/ocr"
 	"mvc/controllers/poi"
+	"mvc/controllers/poi/csv"
 	"mvc/generate"
 	"net/http"
 )
@@ -59,10 +60,13 @@ func SetupRouter(router *gin.Engine) {
 
 	//ocr识别，图片转化成excel
 	router.POST("/ocr", ocr.ConvertToCSV)
-	// 添加其他路由...
 	// 注意：此处不需要返回任何内容，因为我们是直接修改传入的 `router` 对象
 	//导入csv文件到es中
-	router.POST("/import_poi_data_into_es", poi.CsvToPoi)
+	router.POST("/poi/import_poi_data_into_es", poi.CsvToPoi)
+
+	//把大的poi文件拆分成小文件 SplitCSV
+	router.POST("/poi/csv/split", csv.SplitFiles)
+	//
 
 }
 
