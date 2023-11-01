@@ -117,21 +117,21 @@ func prepareBulkPayload(data []map[string]interface{}) []byte {
 		}
 		poiData["location"] = location
 
-		poiService, _ := NewPOIService()
-		existingData, err := poiService.GetPOIsByLocationAndRadius(lat, lon, 3)
-		if err != nil {
-			// Handle the error from GetPOIsByLocationAndRadius
-			errorMsg := fmt.Errorf("Error checking existing data: %v", err)
-			LogInfo(errorMsg.Error())
-			continue
-		}
-		pois := existingData.POIs
+		//poiService, _ := NewPOIService()
+		//existingData, err := poiService.GetPOIsByLocationAndRadius(lat, lon, 3)
+		//if err != nil {
+		//	// Handle the error from GetPOIsByLocationAndRadius
+		//	errorMsg := fmt.Errorf("Error checking existing data: %v", err)
+		//	LogInfo(errorMsg.Error())
+		//	continue
+		//}
+		//pois := existingData.POIs
 
-		if len(pois) > 0 {
-			LogInfo("已经有这条数据了，跳过了存储")
-			// Data already exists, skip storage
-			continue
-		}
+		//if len(pois) > 0 {
+		//	LogInfo("已经有这条数据了，跳过了存储")
+		//	// Data already exists, skip storage
+		//	continue
+		//}
 
 		geoHash := geohash.Encode(lat, lon)
 		poiData["geohash"] = geoHash
