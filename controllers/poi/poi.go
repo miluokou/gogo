@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"io/ioutil"
+	"math/rand"
 	"mvc/service"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
+	"time"
 )
 
 func CsvToPoi(c *gin.Context) {
@@ -44,67 +45,55 @@ func CsvToPoi(c *gin.Context) {
 		return
 	}
 
-	var wg sync.WaitGroup
-	var mutex sync.Mutex
 	var errors []string
 
 	for dirPath, fileNames := range csvFiles {
 		for _, fileName := range fileNames {
-			wg.Add(1)
-			go func(dirPath, fileName string) {
-				defer wg.Done()
 
-				filePath := filepath.Join(dirPath, fileName)
-				file, err := os.Open(filePath)
-				if err != nil {
-					mutex.Lock()
-					errors = append(errors, fmt.Sprintf("%s 打开失败: %s", fileName, err.Error()))
-					mutex.Unlock()
-					return
-				}
-				defer file.Close()
+			service.LogInfo("开始读取文件")
+			service.LogInfo(fileName)
 
-				reader := csv.NewReader(file)
-				records, err := reader.ReadAll()
-				if err != nil {
-					mutex.Lock()
-					errors = append(errors, fmt.Sprintf("%s 读取失败: %s", fileName, err.Error()))
-					mutex.Unlock()
-					return
-				}
+			filePath := filepath.Join(dirPath, fileName)
+			file, err := os.Open(filePath)
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("%s 打开失败: %s", fileName, err.Error()))
+				continue
+			}
+			defer file.Close()
 
-				var data [][]string
-				for _, record := range records {
-					if len(record) > 0 && record[0] == "名称" {
-						continue
-					}
+			reader := csv.NewReader(file)
+			records, err := reader.ReadAll()
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("%s 读取失败: %s", fileName, err.Error()))
+				continue
+			}
 
-					data = append(data, record)
+			var data [][]string
+			for _, record := range records {
+				if len(record) > 0 && record[0] == "名称" {
+					continue
 				}
 
-				err = service.StoreData20231022("poi_2023_01", data)
-				if err != nil {
-					mutex.Lock()
-					errors = append(errors, fmt.Sprintf("%s 存储失败: %s", fileName, err.Error()))
-					mutex.Unlock()
-					return
-				}
+				data = append(data, record)
+			}
+			service.LogInfo("读取完文件组合成一个大data之后向es中存储")
+			err = service.StoreData20231022("poi_2023_01", data)
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("%s 存储失败: %s", fileName, err.Error()))
+				continue
+			}
 
-				count := len(data)
-				countStr := strconv.Itoa(count)
-				service.LogInfo(fmt.Sprintf("%s 文件存储完毕 %s 行", fileName, countStr))
+			count := len(data)
+			countStr := strconv.Itoa(count)
+			service.LogInfo(fmt.Sprintf("%s 文件存储完毕 %s 行", fileName, countStr))
 
-				err = os.Remove(filePath)
-				if err != nil {
-					mutex.Lock()
-					errors = append(errors, fmt.Sprintf("%s 删除失败: %s", filePath, err.Error()))
-					mutex.Unlock()
-				}
-			}(dirPath, fileName)
+			err = os.Remove(filePath)
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("%s 删除失败: %s", filePath, err.Error()))
+			}
+			time.Sleep(time.Duration(rand.Intn(2500)+1000) * time.Millisecond)
 		}
 	}
-
-	wg.Wait()
 
 	if len(errors) > 0 {
 		c.JSON(500, gin.H{"errors": errors})

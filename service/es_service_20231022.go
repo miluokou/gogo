@@ -47,8 +47,8 @@ func StoreData20231022(index string, data [][]string) error {
 			"city":      record[6],
 			"region":    record[7],
 		}
-		//LogInfo(fmt.Sprintf("当前记录：%v", record))
-		//LogInfo(fmt.Sprintf("当前item记录：%v", item))
+		LogInfo(fmt.Sprintf("当前记录：%v", record))
+		LogInfo(fmt.Sprintf("当前item记录：%v", item))
 
 		poiData = append(poiData, item)
 	}

@@ -66,7 +66,6 @@ func SetupRouter(router *gin.Engine) {
 
 	//把大的poi文件拆分成小文件 SplitCSV
 	router.POST("/poi/csv/split", csv.SplitFiles)
-	//
 
 }
 
