@@ -9,7 +9,7 @@ import (
 var esClientPool *sync.Pool
 
 func init() {
-	maxConnections := 10 // 设置连接池的最大容量
+	maxConnections := 1 // 设置连接池的最大容量
 	esClientPool = &sync.Pool{
 		New: func() interface{} {
 			cfg := elasticsearch.Config{
