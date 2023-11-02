@@ -12,20 +12,20 @@ import (
 	"runtime"
 )
 
-func createESClient1() (*elasticsearch.Client, error) {
-	cfg := elasticsearch.Config{
-		Addresses: []string{"http://47.100.242.199:9200"}, // 替换为 Elasticsearch 实际的地址
-		Username:  "elastic",                              // 替换为您的 Elasticsearch 用户名
-		Password:  "miluokou",
-	}
-
-	esClient, err := elasticsearch.NewClient(cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	return esClient, nil
-}
+//func createESClient1() (*elasticsearch.Client, error) {
+//	cfg := elasticsearch.Config{
+//		Addresses: []string{"http://47.100.242.199:9200"}, // 替换为 Elasticsearch 实际的地址
+//		Username:  "elastic",                              // 替换为您的 Elasticsearch 用户名
+//		Password:  "miluokou",
+//	}
+//
+//	esClient, err := elasticsearch.NewClient(cfg)
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	return esClient, nil
+//}
 
 func logWithLineNum(format string, a ...interface{}) {
 	_, file, line, _ := runtime.Caller(1)
@@ -66,12 +66,12 @@ func TestEnv(c *gin.Context) {
 	//你地理编码
 
 	// 创建 Elasticsearch 客户端
-	esClient, err := createESClient1()
-	if err != nil {
-		logWithLineNum("Failed to create Elasticsearch client: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create Elasticsearch client"})
-		return
-	}
+	//esClient, err := createESClient1()
+	//if err != nil {
+	//	logWithLineNum("Failed to create Elasticsearch client: %v", err)
+	//	c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create Elasticsearch client"})
+	//	return
+	//}
 
 	// 存储数据到 Elasticsearch
 	indexName := "your-index-name"

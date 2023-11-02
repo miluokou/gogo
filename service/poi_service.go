@@ -27,7 +27,7 @@ type POIResult struct {
 
 // NewPOIService 创建一个POIService实例
 func NewPOIService() (*POIService, error) {
-	esClient, err := utils.CreateESClient()
+	esClient, err := utils.GetESClient()
 	if err != nil {
 		return nil, err
 	}

@@ -11,7 +11,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/mmcloughlin/geohash"
-	"log"
 	"mvc/models"
 	"mvc/service"
 	"net/http"
@@ -34,28 +33,28 @@ type Property struct {
 
 var esClient *elasticsearch.Client
 
-func init() {
-	var err error
-	esClient, err = createESClient()
-	if err != nil {
-		log.Fatalf("Failed to create Elasticsearch client: %s", err)
-	}
-}
+//func init() {
+//	var err error
+//	esClient, err = createESClient()
+//	if err != nil {
+//		log.Fatalf("Failed to create Elasticsearch client: %s", err)
+//	}
+//}
 
 type PlaceSearchResult struct {
 	RawData map[string]interface{} `json:"-"`
 	Data    []interface{}          `json:"data"`
 }
 
-func createESClient() (*elasticsearch.Client, error) {
-	cfg := elasticsearch.Config{
-		Addresses: []string{"http://47.100.242.199:9200"},
-		Username:  "elastic",
-		Password:  "miluokou",
-	}
-
-	return elasticsearch.NewClient(cfg)
-}
+//func createESClient() (*elasticsearch.Client, error) {
+//	cfg := elasticsearch.Config{
+//		Addresses: []string{"http://47.100.242.199:9200"},
+//		Username:  "elastic",
+//		Password:  "miluokou",
+//	}
+//
+//	return elasticsearch.NewClient(cfg)
+//}
 
 func storeData(c *gin.Context, esClient *elasticsearch.Client, index string, data []interface{}) error {
 	// 将data内容转换为[]map[string]interface{}类型
