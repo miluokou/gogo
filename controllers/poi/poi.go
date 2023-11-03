@@ -59,10 +59,9 @@ func CsvToPoi(c *gin.Context) {
 				errors = append(errors, fmt.Sprintf("%s 打开失败: %s", fileName, err.Error()))
 				continue
 			}
-			defer file.Close()
-
 			reader := csv.NewReader(file)
 			records, err := reader.ReadAll()
+			file.Close()
 			if err != nil {
 				errors = append(errors, fmt.Sprintf("%s 读取失败: %s", fileName, err.Error()))
 				continue
