@@ -11,11 +11,9 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
-// CsvToPoi 改造后的函数，使用信号量控制并发访问共享资源
 func CsvToPoi(c *gin.Context) {
 	relativeDir := "public" // 相对路径，根据实际情况修改
 	absDir, err := filepath.Abs(relativeDir)
@@ -49,68 +47,53 @@ func CsvToPoi(c *gin.Context) {
 
 	var errors []string
 
-	concurrencyLimit := 5
-	sem := make(chan struct{}, concurrencyLimit) // 创建信号量，限制并发访问数量
-
-	var wg sync.WaitGroup
-
 	for dirPath, fileNames := range csvFiles {
 		for _, fileName := range fileNames {
-			wg.Add(1) // 增加等待组计数器
 
-			go func(dirPath, fileName string) {
-				defer wg.Done()
+			service.LogInfo("开始读取文件")
+			service.LogInfo(fileName)
 
-				sem <- struct{}{} // 获取信号量
+			filePath := filepath.Join(dirPath, fileName)
+			file, err := os.Open(filePath)
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("%s 打开失败: %s", fileName, err.Error()))
+				continue
+			}
+			reader := csv.NewReader(file)
+			records, err := reader.ReadAll()
+			file.Close()
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("%s 读取失败: %s", fileName, err.Error()))
+				continue
+			}
 
-				service.LogInfo("开始读取文件")
-				service.LogInfo(fileName)
-
-				filePath := filepath.Join(dirPath, fileName)
-				file, err := os.Open(filePath)
-				if err != nil {
-					errors = append(errors, fmt.Sprintf("%s 打开失败: %s", fileName, err.Error()))
-					return
-				}
-				reader := csv.NewReader(file)
-				records, err := reader.ReadAll()
-				file.Close()
-				if err != nil {
-					errors = append(errors, fmt.Sprintf("%s 读取失败: %s", fileName, err.Error()))
-					return
-				}
-
-				var data [][]string
-				for _, record := range records {
-					if len(record) > 0 && record[0] == "名称" {
-						continue
-					}
-
-					data = append(data, record)
-				}
-				service.LogInfo("读取完文件组合成一个大data之后向es中存储")
-				err = service.StoreData20231022("poi_2023_01", data)
-				if err != nil {
-					errors = append(errors, fmt.Sprintf("%s 存储失败: %s", fileName, err.Error()))
-					return
+			var data [][]string
+			for _, record := range records {
+				if len(record) > 0 && record[0] == "名称" {
+					continue
 				}
 
-				count := len(data)
-				countStr := strconv.Itoa(count)
-				service.LogInfo(fmt.Sprintf("%s 文件存储完毕 %s 行", fileName, countStr))
+				data = append(data, record)
+			}
+			service.LogInfo("读取完文件组合成一个大data之后向es中存储")
+			err = service.StoreData20231022("poi_2023_01", data)
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("%s 存储失败: %s", fileName, err.Error()))
+				continue
+			}
 
-				err = os.Remove(filePath)
-				if err != nil {
-					errors = append(errors, fmt.Sprintf("%s 删除失败: %s", filePath, err.Error()))
-				}
-				time.Sleep(time.Duration(rand.Intn(2500)+1000) * time.Millisecond)
+			count := len(data)
+			countStr := strconv.Itoa(count)
+			service.LogInfo(fmt.Sprintf("%s 文件存储完毕 %s 行", fileName, countStr))
 
-				<-sem // 释放信号量
-			}(dirPath, fileName)
+			err = os.Remove(filePath)
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("%s 删除失败: %s", filePath, err.Error()))
+			}
+			os.Exit(1)
+			time.Sleep(time.Duration(rand.Intn(2500)+1000) * time.Millisecond)
 		}
 	}
-
-	wg.Wait() // 等待所有任务完成
 
 	if len(errors) > 0 {
 		c.JSON(500, gin.H{"errors": errors})
