@@ -117,16 +117,10 @@ func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 		key := fmt.Sprintf("%.6f_%.6f", lat, lon)
 
 		requestCount.Lock()
-		count, exists := requestCount.Map.Load(key)
-		if exists {
-			requestCount.Map.Store(key, count.(int)+1)
-		} else {
-			requestCount.Map.Store(key, 1)
-		}
+		count, _ := requestCount.Map.LoadOrStore(key, 0) // 使用 LoadOrStore 方法获取计数值，如果不存在则初始化为 0
+		requestCount.Map.Store(key, count.(int)+1)
 		if count.(int) > 0 {
 			LogInfo(fmt.Sprintf("经纬度 %.6f, %.6f 的请求次数大于1，跳过处理", lat, lon))
-			requestCount.Unlock()
-			continue
 		}
 		requestCount.Unlock()
 
