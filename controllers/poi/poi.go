@@ -11,8 +11,41 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
+
+var (
+	openedFiles = make(map[string]*os.File)
+	mutex       = &sync.Mutex{}
+)
+
+func openFile(filePath string) (*os.File, error) {
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	if file, ok := openedFiles[filePath]; ok {
+		return file, nil
+	}
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	openedFiles[filePath] = file
+	return file, nil
+}
+
+func closeFile(filePath string) {
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	if file, ok := openedFiles[filePath]; ok {
+		file.Close()
+		delete(openedFiles, filePath)
+	}
+}
 
 func CsvToPoi(c *gin.Context) {
 	relativeDir := "public" // 相对路径，根据实际情况修改
@@ -54,16 +87,16 @@ func CsvToPoi(c *gin.Context) {
 			service.LogInfo(fileName)
 
 			filePath := filepath.Join(dirPath, fileName)
-			file, err := os.Open(filePath)
+			file, err := openFile(filePath)
 			if err != nil {
 				errors = append(errors, fmt.Sprintf("%s 打开失败: %s", fileName, err.Error()))
 				continue
 			}
 			reader := csv.NewReader(file)
 			records, err := reader.ReadAll()
-			file.Close()
 			if err != nil {
 				errors = append(errors, fmt.Sprintf("%s 读取失败: %s", fileName, err.Error()))
+				closeFile(filePath)
 				continue
 			}
 
@@ -79,6 +112,7 @@ func CsvToPoi(c *gin.Context) {
 			err = service.StoreData20231022("poi_2023_01", data)
 			if err != nil {
 				errors = append(errors, fmt.Sprintf("%s 存储失败: %s", fileName, err.Error()))
+				closeFile(filePath)
 				continue
 			}
 
@@ -90,7 +124,6 @@ func CsvToPoi(c *gin.Context) {
 			if err != nil {
 				errors = append(errors, fmt.Sprintf("%s 删除失败: %s", filePath, err.Error()))
 			}
-			os.Exit(1)
 			time.Sleep(time.Duration(rand.Intn(2500)+1000) * time.Millisecond)
 		}
 	}
