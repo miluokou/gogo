@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
 	"github.com/mmcloughlin/geohash"
+	"github.com/patrickmn/go-cache"
 	"log"
 	"mvc/utils"
 	"strconv"
@@ -50,11 +51,11 @@ func StoreData20231022(index string, data [][]string) error {
 
 		poiData = append(poiData, item)
 	}
-	LogInfo("组合好了一波 poiData 开始向prepareBulkPayload20231022 方法中传入开始预处理")
+
 	StoreData20231022Group.Add(1)
 	// 获取信号量，限制并发数量
 	StoreData20231022Semaphore <- struct{}{}
-
+	LogInfo("组合好了一波 poiData 开始向prepareBulkPayload20231022 方法中传入开始预处理")
 	prepareDataBefore := prepareBulkPayload20231022(poiData)
 
 	<-StoreData20231022Semaphore // 释放信号量，允许下一个请求
@@ -90,60 +91,48 @@ func StoreData20231022(index string, data [][]string) error {
 	return nil
 }
 
-/**
-* 这个方法应该只是拼接一下数据
- */
 var waitGroup sync.WaitGroup
-var semaphorePrePare = make(chan struct{}, 2) // 设置并发请求数量为10
+var semaphorePrePare = make(chan struct{}, 2)        // 设置并发请求数量为2
+var dataCache = cache.New(3*time.Hour, 24*time.Hour) // 创建一个缓存，设置缓存过期时间为3天
 
 func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 	var bulkPayload strings.Builder
 
 	for _, poiData := range data {
+		cacheKey := fmt.Sprintf("%v", poiData) // 以poiData作为缓存的key
 
-		lon, err := strconv.ParseFloat(poiData["longitude"].(string), 64)
-		if err != nil {
-			continue // 跳过无效的经度值
-		}
-		lat, err := strconv.ParseFloat(poiData["latitude"].(string), 64)
-		if err != nil {
-			continue // 跳过无效的纬度值
+		// 检查是否已经缓存过该数据
+		if cachedResult, found := dataCache.Get(cacheKey); found {
+			// 如果找到缓存结果，直接返回
+			return cachedResult.([]byte)
 		}
 
-		location := map[string]interface{}{
-			"lon": lon,
-			"lat": lat,
-		}
+		lon, _ := strconv.ParseFloat(poiData["longitude"].(string), 64)
+		lat, _ := strconv.ParseFloat(poiData["latitude"].(string), 64)
+		location := map[string]interface{}{"lon": lon, "lat": lat}
 		poiData["location"] = location
 
 		poiService, _ := NewPOIService20231022()
 		waitGroup.Add(1)
-		// 获取信号量，限制并发数量
 		semaphorePrePare <- struct{}{}
 		LogInfo("开始检查点位的是否存在于poi中")
 		LogInfo(location)
 		existingData, err := poiService.GetPOIsByLocationAndRadius20231022(lat, lon, 5000)
 
 		if err != nil {
-			// Handle the error from GetPOIsByLocationAndRadius
 			errorMsg := fmt.Errorf("Error checking existing data: %v", err)
 			LogInfo(errorMsg.Error())
 			LogInfo(existingData)
-
-			<-semaphorePrePare // 释放信号量，允许下一个请求
+			<-semaphorePrePare
 			waitGroup.Done()
-
 			continue
 		}
 
 		pois := existingData.POIs
 		if len(pois) > 0 {
 			LogInfo("已经有这条数据了，跳过了存储")
-			// Data already exists, skip storage
-
-			<-semaphorePrePare // 释放信号量，允许下一个请求
+			<-semaphorePrePare
 			waitGroup.Done()
-
 			continue
 		}
 
@@ -153,10 +142,8 @@ func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 		if err != nil {
 			LogInfo("逆地理编码失败")
 			LogInfo(err)
-
-			<-semaphorePrePare // 释放信号量，允许下一个请求
+			<-semaphorePrePare
 			waitGroup.Done()
-
 			continue
 		}
 		poiData["adcode"] = regeocodes["addressComponent"].(map[string]interface{})["adcode"]
@@ -166,38 +153,29 @@ func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 
 		adcode, ok := poiData["adcode"].(string)
 		if !ok {
-			<-semaphorePrePare // 释放信号量，允许下一个请求
+			<-semaphorePrePare
 			waitGroup.Done()
-
-			continue // 跳过无效的adcode值
+			continue
 		}
 		uniqueID := generateUniqueID(adcode)
 		poiData["poi_id"] = uniqueID
 
 		documentID := generateDocumentID(adcode)
-
 		currentTime := time.Now().Format("2006-01-02 15:04:05")
 
 		poiData["created_at"] = currentTime
 		poiData["updated_at"] = currentTime
 
-		poiJSON, err := json.Marshal(poiData)
-		if err != nil {
-			<-semaphorePrePare // 释放信号量，允许下一个请求
-			waitGroup.Done()
-
-			continue // 跳过无效的JSON序列化
-		}
-
-		bulkPayload.WriteString(`{"index":{"_index":"poi_2023_01","_id":"`)
-		bulkPayload.WriteString(documentID)
-		bulkPayload.WriteString(`"}}`)
-		bulkPayload.WriteByte('\n')
+		poiJSON, _ := json.Marshal(poiData)
+		bulkPayload.WriteString(fmt.Sprintf(`{"index":{"_index":"poi_2023_01","_id":"%s"}}`, documentID))
+		bulkPayload.WriteString("\n")
 		bulkPayload.Write(poiJSON)
-		bulkPayload.WriteByte('\n')
+		bulkPayload.WriteString("\n")
 
-		<-semaphorePrePare // 释放信号量，允许下一个请求
+		<-semaphorePrePare
 		waitGroup.Done()
+
+		dataCache.Set(cacheKey, []byte(bulkPayload.String()), cache.DefaultExpiration)
 	}
 
 	waitGroup.Wait() // 等待所有请求完成

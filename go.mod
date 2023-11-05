@@ -9,9 +9,9 @@ require (
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/google/uuid v1.1.2
 	github.com/mmcloughlin/geohash v0.10.0
+	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/segmentio/kafka-go v0.4.42
 	github.com/spf13/viper v1.16.0
-	golang.org/x/time v0.1.0
 	gopkg.in/dgrijalva/jwt-go.v3 v3.2.0
 	gorm.io/driver/mysql v1.5.1
 	gorm.io/gorm v1.25.2
