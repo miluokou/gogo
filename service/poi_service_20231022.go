@@ -8,6 +8,10 @@ import (
 	"github.com/elastic/go-elasticsearch/v8/esapi"
 	"github.com/elastic/go-elasticsearch/v8/esutil"
 	"mvc/utils"
+	"os/exec"
+	"strconv"
+	"strings"
+	"time"
 )
 
 // POIService20231022 POIService 提供与POI相关的服务方法
@@ -38,7 +42,43 @@ var req = esapi.SearchRequest{
 	Body:  nil, // 初始置为空
 }
 
+// WaitForFileDescriptors 等待足够的文件描述符可用
+func WaitForFileDescriptors(desiredLimit uint64, delay time.Duration) {
+	for {
+		cmd := exec.Command("bash", "-c", "ulimit -n")
+		output, err := cmd.Output()
+		if err != nil {
+			LogInfo("无法获取系统文件描述符限制：" + err.Error())
+			return
+		}
+
+		limitStr := strings.TrimSpace(string(output))
+		currentLimit, err := strconv.ParseUint(limitStr, 10, 64)
+		if err != nil {
+			LogInfo("无法解析文件描述符限制：" + err.Error())
+			return
+		}
+
+		LogInfo("当前文件描述符限制：" + limitStr)
+
+		// 比较并调整文件描述符限制
+		if currentLimit >= desiredLimit {
+			LogInfo("文件描述符限制已满足期望值。")
+			break
+		}
+
+		LogInfo("文件描述符限制未满足期望值，将等待 " + delay.String() + " 后重试...")
+		time.Sleep(delay)
+	}
+}
+
 func (s *POIService) GetPOIsByLocationAndRadius20231022(latitude, longitude float64, radius float64) (POIResult, error) {
+	// 获取系统的文件描述符数量
+	desiredLimit := uint64(50000) // 期望的文件描述符限制
+	waitDelay := time.Second      // 等待延时
+
+	WaitForFileDescriptors(desiredLimit, waitDelay)
+
 	query := map[string]interface{}{
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
