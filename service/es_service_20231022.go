@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
 	"github.com/mmcloughlin/geohash"
-	"github.com/patrickmn/go-cache"
 	"log"
 	"mvc/utils"
 	"strconv"
@@ -91,19 +90,23 @@ func StoreData20231022(index string, data [][]string) error {
 	return nil
 }
 
-var dataCache = cache.New(3*time.Hour, 24*time.Hour) // 创建一个缓存，设置缓存过期时间为3天
-var requestCount = make(map[string]int)
+var dataCache sync.Map // 并发安全的缓存结构
+var requestCount = struct {
+	sync.Map
+	sync.Mutex
+}{}
+var requestCountMutex sync.Mutex // 互斥锁
 
 func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 	var bulkPayload strings.Builder
 	var counter int
 	var cacheKey string
-	// 请求计数
+
 	for _, poiData := range data {
 		cacheKey := fmt.Sprintf("%v", poiData) // 以poiData作为缓存的key
 
 		// 检查是否已经缓存过该数据
-		if cachedResult, found := dataCache.Get(cacheKey); found {
+		if cachedResult, found := dataCache.Load(cacheKey); found {
 			// 如果找到缓存结果，直接返回
 			return cachedResult.([]byte)
 		}
@@ -112,13 +115,20 @@ func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 		lat, _ := strconv.ParseFloat(poiData["latitude"].(string), 64)
 
 		key := fmt.Sprintf("%.6f_%.6f", lat, lon)
-		requestCount[key]++ // 增加请求计数
 
-		// 判断请求次数是否大于1
-		if requestCount[key] > 1 {
+		requestCount.Lock()
+		count, exists := requestCount.Map.Load(key)
+		if exists {
+			requestCount.Map.Store(key, count.(int)+1)
+		} else {
+			requestCount.Map.Store(key, 1)
+		}
+		if count.(int) > 0 {
 			LogInfo(fmt.Sprintf("经纬度 %.6f, %.6f 的请求次数大于1，跳过处理", lat, lon))
+			requestCount.Unlock()
 			continue
 		}
+		requestCount.Unlock()
 
 		location := map[string]interface{}{"lon": lon, "lat": lat}
 		poiData["location"] = location
@@ -178,8 +188,8 @@ func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 		counter++
 		LogInfo(fmt.Sprintf("处理完成第 %d 条数据", counter))
 	}
-	// 将缓存设置放在循环外面
-	dataCache.Set(cacheKey, []byte(bulkPayload.String()), cache.DefaultExpiration)
+
+	dataCache.Store(cacheKey, []byte(bulkPayload.String())) // 将缓存设置放在循环外面
 
 	return []byte(bulkPayload.String())
 }
