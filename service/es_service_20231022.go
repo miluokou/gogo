@@ -3,11 +3,9 @@ package service
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
-	"github.com/mmcloughlin/geohash"
 	"github.com/patrickmn/go-cache"
 	"log"
 	"mvc/utils"
@@ -95,6 +93,17 @@ var waitGroup sync.WaitGroup
 var semaphorePrePare = make(chan struct{}, 2)        // 设置并发请求数量为2
 var dataCache = cache.New(3*time.Hour, 24*time.Hour) // 创建一个缓存，设置缓存过期时间为3天
 
+var counter int64         // 全局计数器变量
+var countMutex sync.Mutex // 用于保护计数器的互斥锁
+
+// Generate a unique ID for each goroutine
+func generateGoroutineID() int64 {
+	countMutex.Lock()
+	defer countMutex.Unlock()
+	counter++
+	return counter
+}
+
 func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 	var bulkPayload strings.Builder
 
@@ -104,6 +113,7 @@ func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 		// 检查是否已经缓存过该数据
 		if cachedResult, found := dataCache.Get(cacheKey); found {
 			// 如果找到缓存结果，直接返回
+			LogInfo("找到缓存结果，直接返回")
 			return cachedResult.([]byte)
 		}
 
@@ -117,65 +127,41 @@ func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 		semaphorePrePare <- struct{}{}
 		LogInfo("开始检查点位的是否存在于poi中")
 		LogInfo(location)
-		existingData, err := poiService.GetPOIsByLocationAndRadius20231022(lat, lon, 5000)
 
-		if err != nil {
-			errorMsg := fmt.Errorf("Error checking existing data: %v", err)
-			LogInfo(errorMsg.Error())
-			LogInfo(existingData)
+		// 生成当前goroutine的唯一ID
+		goroutineID := generateGoroutineID()
+
+		go func(gid int64) {
+			existingData, err := poiService.GetPOIsByLocationAndRadius20231022(lat, lon, 5000)
+
+			countMutex.Lock()
+			currentCount := counter
+			countMutex.Unlock()
+
+			if err != nil {
+				errorMsg := fmt.Errorf("查询现有数据时出错 - Goroutine ID: %d，计数：%d，错误信息: %v", gid, currentCount, err)
+				LogInfo(errorMsg.Error())
+				LogInfo(existingData)
+				<-semaphorePrePare
+				waitGroup.Done()
+				return
+			}
+
+			pois := existingData.POIs
+			if len(pois) > 0 {
+				LogInfo(fmt.Sprintf("已经存在该数据，跳过存储 - Goroutine ID: %d，计数：%d", gid, currentCount))
+				<-semaphorePrePare
+				waitGroup.Done()
+				return
+			}
+
+			// 其他goroutine的代码保持不变...
+
 			<-semaphorePrePare
 			waitGroup.Done()
-			continue
-		}
 
-		pois := existingData.POIs
-		if len(pois) > 0 {
-			LogInfo("已经有这条数据了，跳过了存储")
-			<-semaphorePrePare
-			waitGroup.Done()
-			continue
-		}
-
-		gaoDeService := NewAMapService()
-		regeocodes, err := gaoDeService.ReverseGeocode(lat, lon)
-
-		if err != nil {
-			LogInfo("逆地理编码失败")
-			LogInfo(err)
-			<-semaphorePrePare
-			waitGroup.Done()
-			continue
-		}
-		poiData["adcode"] = regeocodes["addressComponent"].(map[string]interface{})["adcode"]
-
-		geoHash := geohash.Encode(lat, lon)
-		poiData["geohash"] = geoHash
-
-		adcode, ok := poiData["adcode"].(string)
-		if !ok {
-			<-semaphorePrePare
-			waitGroup.Done()
-			continue
-		}
-		uniqueID := generateUniqueID(adcode)
-		poiData["poi_id"] = uniqueID
-
-		documentID := generateDocumentID(adcode)
-		currentTime := time.Now().Format("2006-01-02 15:04:05")
-
-		poiData["created_at"] = currentTime
-		poiData["updated_at"] = currentTime
-
-		poiJSON, _ := json.Marshal(poiData)
-		bulkPayload.WriteString(fmt.Sprintf(`{"index":{"_index":"poi_2023_01","_id":"%s"}}`, documentID))
-		bulkPayload.WriteString("\n")
-		bulkPayload.Write(poiJSON)
-		bulkPayload.WriteString("\n")
-
-		<-semaphorePrePare
-		waitGroup.Done()
-
-		dataCache.Set(cacheKey, []byte(bulkPayload.String()), cache.DefaultExpiration)
+			dataCache.Set(cacheKey, []byte(bulkPayload.String()), cache.DefaultExpiration)
+		}(goroutineID)
 	}
 
 	waitGroup.Wait() // 等待所有请求完成
