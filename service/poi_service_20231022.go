@@ -36,6 +36,11 @@ func NewPOIService20231022() (*POIService, error) {
 	}, nil
 }
 
+var req = esapi.SearchRequest{
+	Index: []string{"poi_2023_01"},
+	Body:  nil, // 初始置为空
+}
+
 func (s *POIService) GetPOIsByLocationAndRadius20231022(latitude, longitude float64, radius float64) (POIResult, error) {
 	query := map[string]interface{}{
 		"query": map[string]interface{}{
@@ -57,11 +62,7 @@ func (s *POIService) GetPOIsByLocationAndRadius20231022(latitude, longitude floa
 			},
 		},
 	}
-
-	req := esapi.SearchRequest{
-		Index: []string{"poi_2023_01"},
-		Body:  esutil.NewJSONReader(query),
-	}
+	req.Body = esutil.NewJSONReader(query)
 
 	res, err := req.Do(context.Background(), s.esClient)
 	if err != nil {
