@@ -92,12 +92,13 @@ func StoreData20231022(index string, data [][]string) error {
 }
 
 var dataCache = cache.New(3*time.Hour, 24*time.Hour) // 创建一个缓存，设置缓存过期时间为3天
+var requestCount = make(map[string]int)
 
 func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 	var bulkPayload strings.Builder
 	var counter int
 	var cacheKey string
-
+	// 请求计数
 	for _, poiData := range data {
 		cacheKey := fmt.Sprintf("%v", poiData) // 以poiData作为缓存的key
 
@@ -109,6 +110,16 @@ func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 
 		lon, _ := strconv.ParseFloat(poiData["longitude"].(string), 64)
 		lat, _ := strconv.ParseFloat(poiData["latitude"].(string), 64)
+
+		key := fmt.Sprintf("%.6f_%.6f", lat, lon)
+		requestCount[key]++ // 增加请求计数
+
+		// 判断请求次数是否大于1
+		if requestCount[key] > 1 {
+			LogInfo(fmt.Sprintf("经纬度 %.6f, %.6f 的请求次数大于1，跳过处理", lat, lon))
+			continue
+		}
+
 		location := map[string]interface{}{"lon": lon, "lat": lat}
 		poiData["location"] = location
 
@@ -139,6 +150,7 @@ func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 			LogInfo(err)
 			continue
 		}
+
 		poiData["adcode"] = regeocodes["addressComponent"].(map[string]interface{})["adcode"]
 
 		geoHash := geohash.Encode(lat, lon)
