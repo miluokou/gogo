@@ -45,42 +45,69 @@ var req = esapi.SearchRequest{
 // WaitForFileDescriptors 等待足够的文件描述符可用
 func WaitForFileDescriptors(desiredLimit uint64, delay time.Duration) {
 	for {
-		cmd := exec.Command("bash", "-c", "ulimit -n")
-		output, err := cmd.Output()
+		// 获取当前打开的文件描述符数量
+		_, err := getCurrentFileDescriptorLimit()
 		if err != nil {
 			LogInfo("无法获取系统文件描述符限制：" + err.Error())
 			time.Sleep(delay)
 			continue
 		}
 
-		limitStr := strings.TrimSpace(string(output))
-		currentLimit, err := strconv.ParseUint(limitStr, 10, 64)
+		// 根据当前文件描述符数量设置新的限制
+		currentLimitTanXing, err := getCurrentFileDescriptorLimitTanXing()
+		LogInfo("期望限定的数量为")
+		LogInfo(desiredLimit)
+		LogInfo("当前打开文件的数量为")
+		LogInfo(currentLimitTanXing)
 		if err != nil {
-			LogInfo("无法解析文件描述符限制：" + err.Error())
+			LogInfo("无法设置文件描述符限制：" + err.Error())
 			time.Sleep(delay)
 			continue
 		}
 
-		LogInfo("当前文件描述符限制是：")
-		LogInfo(currentLimit)
-		LogInfo("desiredLimit 是：")
-		LogInfo(desiredLimit)
-
-		// 比较并调整文件描述符限制
-		if currentLimit >= desiredLimit {
-			LogInfo("文件描述符限制已满足期望值。")
-			break
-		}
-
-		LogInfo("文件描述符限制未满足期望值，将等待 " + delay.String() + " 后重试...")
+		LogInfo("增加文件描述符限制并等待 " + delay.String() + " 后重试...")
 		time.Sleep(delay)
 	}
+}
+
+// getCurrentFileDescriptorLimit 获取当前打开的文件描述符数量
+func getCurrentFileDescriptorLimit() (uint64, error) {
+	cmd := exec.Command("bash", "-c", "ulimit -n")
+	output, err := cmd.Output()
+	if err != nil {
+		return 0, err
+	}
+
+	limitStr := strings.TrimSpace(string(output))
+	currentLimit, err := strconv.ParseUint(limitStr, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return currentLimit, nil
+}
+
+// getCurrentFileDescriptorLimit 获取当前打开的文件描述符数量
+func getCurrentFileDescriptorLimitTanXing() (uint64, error) {
+	cmd := exec.Command("bash", "-c", "ls /proc/self/fd | wc -l")
+	output, err := cmd.Output()
+	if err != nil {
+		return 0, err
+	}
+
+	limitStr := strings.TrimSpace(string(output))
+	currentLimit, err := strconv.ParseUint(limitStr, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return currentLimit, nil
 }
 
 func (s *POIService) GetPOIsByLocationAndRadius20231022(latitude, longitude float64, radius float64) (POIResult, error) {
 	// 获取系统的文件描述符数量
 	desiredLimit := uint64(1000) // 期望的文件描述符限制
-	waitDelay := time.Second     // 等待延时
+	waitDelay := 2 * time.Second // 等待延时
 
 	WaitForFileDescriptors(desiredLimit, waitDelay)
 
