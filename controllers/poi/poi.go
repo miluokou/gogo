@@ -18,6 +18,8 @@ import (
 var (
 	openedFiles = make(map[string]*os.File)
 	mutex       = &sync.Mutex{}
+	fileCache   = make(map[string]bool) // File cache to track processed files
+	cacheMutex  = &sync.Mutex{}
 )
 
 func openFile(filePath string) (*os.File, error) {
@@ -45,6 +47,18 @@ func closeFile(filePath string) {
 		file.Close()
 		delete(openedFiles, filePath)
 	}
+}
+
+func isFileProcessed(filePath string) bool {
+	cacheMutex.Lock()
+	defer cacheMutex.Unlock()
+	return fileCache[filePath]
+}
+
+func markFileAsProcessed(filePath string) {
+	cacheMutex.Lock()
+	defer cacheMutex.Unlock()
+	fileCache[filePath] = true
 }
 
 func CsvToPoi(c *gin.Context) {
@@ -87,6 +101,12 @@ func CsvToPoi(c *gin.Context) {
 			service.LogInfo(fileName)
 
 			filePath := filepath.Join(dirPath, fileName)
+
+			// Check if file is already processed
+			if isFileProcessed(filePath) {
+				continue
+			}
+
 			file, err := openFile(filePath)
 			if err != nil {
 				errors = append(errors, fmt.Sprintf("%s 打开失败: %s", fileName, err.Error()))
@@ -123,6 +143,8 @@ func CsvToPoi(c *gin.Context) {
 			err = os.Remove(filePath)
 			if err != nil {
 				errors = append(errors, fmt.Sprintf("%s 删除失败: %s", filePath, err.Error()))
+			} else {
+				markFileAsProcessed(filePath) // Mark file as processed
 			}
 			time.Sleep(time.Duration(rand.Intn(2500)+1000) * time.Millisecond)
 		}
