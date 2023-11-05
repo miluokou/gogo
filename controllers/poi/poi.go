@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -47,8 +46,6 @@ func CsvToPoi(c *gin.Context) {
 	}
 
 	var errors []string
-	semaphore := make(chan struct{}, 1) // 控制文件处理的并发数量
-	var mutex sync.Mutex
 
 	for dirPath, fileNames := range csvFiles {
 		for _, fileName := range fileNames {
@@ -57,30 +54,45 @@ func CsvToPoi(c *gin.Context) {
 			service.LogInfo(fileName)
 
 			filePath := filepath.Join(dirPath, fileName)
-			semaphore <- struct{}{} // 获取信号量，控制并发数量
-			go func(filePath string) {
-				defer func() {
-					<-semaphore // 释放信号量
-				}()
-				mutex.Lock()
-				err := processFile(filePath)
-				if err != nil {
-					errors = append(errors, fmt.Sprintf("%s 处理失败: %s", fileName, err.Error()))
-					mutex.Unlock()
-					return
-				}
-				mutex.Unlock()
+			file, err := os.Open(filePath)
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("%s 打开失败: %s", fileName, err.Error()))
+				continue
+			}
+			reader := csv.NewReader(file)
+			records, err := reader.ReadAll()
+			file.Close()
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("%s 读取失败: %s", fileName, err.Error()))
+				continue
+			}
 
-				err = os.Remove(filePath)
-				if err != nil {
-					errors = append(errors, fmt.Sprintf("%s 删除失败: %s", filePath, err.Error()))
+			var data [][]string
+			for _, record := range records {
+				if len(record) > 0 && record[0] == "名称" {
+					continue
 				}
-			}(filePath)
+
+				data = append(data, record)
+			}
+			service.LogInfo("读取完文件组合成一个大data之后向es中存储")
+			err = service.StoreData20231022("poi_2023_01", data)
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("%s 存储失败: %s", fileName, err.Error()))
+				continue
+			}
+
+			count := len(data)
+			countStr := strconv.Itoa(count)
+			service.LogInfo(fmt.Sprintf("%s 文件存储完毕 %s 行", fileName, countStr))
+
+			err = os.Remove(filePath)
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("%s 删除失败: %s", filePath, err.Error()))
+			}
+			os.Exit(1)
+			time.Sleep(time.Duration(rand.Intn(2500)+1000) * time.Millisecond)
 		}
-	}
-
-	for i := 0; i < cap(semaphore); i++ {
-		semaphore <- struct{}{}
 	}
 
 	if len(errors) > 0 {
@@ -89,41 +101,4 @@ func CsvToPoi(c *gin.Context) {
 	}
 
 	c.JSON(200, csvFiles)
-}
-
-func processFile(filePath string) error {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	reader := csv.NewReader(file)
-	records, err := reader.ReadAll()
-	if err != nil {
-		return err
-	}
-
-	var data [][]string
-	for _, record := range records {
-		if len(record) > 0 && record[0] == "名称" {
-			continue
-		}
-
-		data = append(data, record)
-	}
-
-	service.LogInfo("读取完文件组合成一个大data之后向es中存储")
-	err = service.StoreData20231022("poi_2023_01", data)
-	if err != nil {
-		return err
-	}
-
-	count := len(data)
-	countStr := strconv.Itoa(count)
-	service.LogInfo(fmt.Sprintf("%s 文件存储完毕 %s 行", filePath, countStr))
-
-	time.Sleep(time.Duration(rand.Intn(2500)+1000) * time.Millisecond)
-
-	return nil
 }
