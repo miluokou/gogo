@@ -106,6 +106,7 @@ func CsvToPoi(c *gin.Context) {
 			if isFileProcessed(filePath) {
 				continue
 			}
+			markFileAsProcessed(filePath)
 
 			file, err := openFile(filePath)
 			if err != nil {

@@ -22,7 +22,7 @@ type PlaceSearchResult20231022 struct {
 }
 
 var StoreData20231022Group sync.WaitGroup
-var StoreData20231022Semaphore = make(chan struct{}, 9)
+var StoreData20231022Semaphore = make(chan struct{}, 1)
 
 func StoreData20231022(index string, data [][]string) error {
 	// 将每条记录转换为map[string]interface{}
