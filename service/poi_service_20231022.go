@@ -89,24 +89,19 @@ func getCurrentFileDescriptorLimit() (uint64, error) {
 
 // getCurrentFileDescriptorLimit 获取当前打开的文件描述符数量
 func getCurrentFileDescriptorLimitTanXing() (uint64, error) {
-	res, err := req.Do(context.Background(), esClient)
-	if err != nil {
-		return 0, err
-	}
-	defer res.Body.Close()
-
-	if res.IsError() {
-		return 0, fmt.Errorf("Elasticsearch response error: %s", res.String())
-	}
-
-	var countResponse map[string]interface{}
-	err = json.NewDecoder(res.Body).Decode(&countResponse)
+	cmd := exec.Command("bash", "-c", "ls /proc/self/fd | wc -l")
+	output, err := cmd.Output()
 	if err != nil {
 		return 0, err
 	}
 
-	count := uint64(countResponse["count"].(float64))
-	return count, nil
+	limitStr := strings.TrimSpace(string(output))
+	currentLimit, err := strconv.ParseUint(limitStr, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return currentLimit, nil
 }
 
 func (s *POIService) GetPOIsByLocationAndRadius20231022(latitude, longitude float64, radius float64) (POIResult, error) {
