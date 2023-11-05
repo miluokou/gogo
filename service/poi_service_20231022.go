@@ -64,9 +64,9 @@ func WaitForFileDescriptors(desiredLimit uint64, delay time.Duration) {
 			time.Sleep(delay)
 			continue
 		}
-
-		LogInfo("增加文件描述符限制并等待 " + delay.String() + " 后重试...")
-		time.Sleep(delay)
+		break
+		//LogInfo("增加文件描述符限制并等待 " + delay.String() + " 后重试...")
+		//time.Sleep(delay)
 	}
 }
 
