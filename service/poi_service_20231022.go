@@ -49,17 +49,22 @@ func WaitForFileDescriptors(desiredLimit uint64, delay time.Duration) {
 		output, err := cmd.Output()
 		if err != nil {
 			LogInfo("无法获取系统文件描述符限制：" + err.Error())
-			return
+			time.Sleep(delay)
+			continue
 		}
 
 		limitStr := strings.TrimSpace(string(output))
 		currentLimit, err := strconv.ParseUint(limitStr, 10, 64)
 		if err != nil {
 			LogInfo("无法解析文件描述符限制：" + err.Error())
-			return
+			time.Sleep(delay)
+			continue
 		}
 
-		LogInfo("当前文件描述符限制：" + limitStr)
+		LogInfo("当前文件描述符限制是：")
+		LogInfo(currentLimit)
+		LogInfo("desiredLimit 是：")
+		LogInfo(desiredLimit)
 
 		// 比较并调整文件描述符限制
 		if currentLimit >= desiredLimit {
