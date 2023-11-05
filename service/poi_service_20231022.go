@@ -3,14 +3,11 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
 	"github.com/elastic/go-elasticsearch/v8/esutil"
 	"mvc/utils"
-	"strconv"
-	"strings"
 )
 
 // POIService20231022 POIService 提供与POI相关的服务方法
@@ -61,6 +58,7 @@ func (s *POIService) GetPOIsByLocationAndRadius20231022(latitude, longitude floa
 				},
 			},
 		},
+		"size": 10, // 设置每个请求返回的文档数量
 	}
 	req.Body = esutil.NewJSONReader(query)
 
@@ -143,27 +141,4 @@ func (s *POIService) GetPOIsByLocationAndRadius20231022(latitude, longitude floa
 		HouseholdsAvg:  householdsAvg,
 		PricePerSqMAvg: pricePerSqMAvg,
 	}, nil
-}
-
-// ParseLocation20231022 ParseLocation 解析经纬度字符串，返回经度和纬度值
-func ParseLocation20231022(location string) (string, string, error) {
-	// 将经纬度字符串拆分为经度和纬度部分
-	parts := strings.Split(location, ",")
-
-	if len(parts) != 2 {
-		return "", "", errors.New("Invalid location format")
-	}
-
-	// 解析经度和纬度值
-	latitude, err := strconv.ParseFloat(strings.TrimSpace(parts[0]), 64)
-	if err != nil {
-		return "", "", errors.New("Invalid latitude value")
-	}
-
-	longitude, err := strconv.ParseFloat(strings.TrimSpace(parts[1]), 64)
-	if err != nil {
-		return "", "", errors.New("Invalid longitude value")
-	}
-
-	return strconv.FormatFloat(latitude, 'f', -1, 64), strconv.FormatFloat(longitude, 'f', -1, 64), nil
 }
