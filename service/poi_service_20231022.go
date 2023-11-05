@@ -74,8 +74,8 @@ func WaitForFileDescriptors(desiredLimit uint64, delay time.Duration) {
 
 func (s *POIService) GetPOIsByLocationAndRadius20231022(latitude, longitude float64, radius float64) (POIResult, error) {
 	// 获取系统的文件描述符数量
-	desiredLimit := uint64(50000) // 期望的文件描述符限制
-	waitDelay := time.Second      // 等待延时
+	desiredLimit := uint64(1000) // 期望的文件描述符限制
+	waitDelay := time.Second     // 等待延时
 
 	WaitForFileDescriptors(desiredLimit, waitDelay)
 
