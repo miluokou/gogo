@@ -62,7 +62,7 @@ func SetupRouter(router *gin.Engine) {
 	router.POST("/ocr", ocr.ConvertToCSV)
 	// 注意：此处不需要返回任何内容，因为我们是直接修改传入的 `router` 对象
 	//导入csv文件到es中
-	router.POST("/poi/import_poi_data_into_es", poi.CsvToPoi)
+	router.GET("/poi/import_poi_data_into_es", poi.CsvToPoi)
 
 	//把大的poi文件拆分成小文件 SplitCSV
 	router.POST("/poi/csv/split", csv.SplitFiles)
