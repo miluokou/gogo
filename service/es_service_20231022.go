@@ -47,11 +47,10 @@ func StoreData20231022(index string, data [][]string) error {
 			"city":      record[6],
 			"region":    record[7],
 		}
-		LogInfo(fmt.Sprintf("当前记录：%v", record))
-		LogInfo(fmt.Sprintf("当前item记录：%v", item))
 
 		poiData = append(poiData, item)
 	}
+	LogInfo("组合好了一波 poiData 开始向prepareBulkPayload20231022 方法中传入开始预处理")
 	StoreData20231022Group.Add(1)
 	// 获取信号量，限制并发数量
 	StoreData20231022Semaphore <- struct{}{}
@@ -95,7 +94,7 @@ func StoreData20231022(index string, data [][]string) error {
 * 这个方法应该只是拼接一下数据
  */
 var waitGroup sync.WaitGroup
-var semaphore = make(chan struct{}, 9) // 设置并发请求数量为10
+var semaphorePrePare = make(chan struct{}, 2) // 设置并发请求数量为10
 
 func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 	var bulkPayload strings.Builder
@@ -120,7 +119,9 @@ func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 		poiService, _ := NewPOIService20231022()
 		waitGroup.Add(1)
 		// 获取信号量，限制并发数量
-		semaphore <- struct{}{}
+		semaphorePrePare <- struct{}{}
+		LogInfo("开始检查点位的是否存在于poi中")
+		LogInfo(location)
 		existingData, err := poiService.GetPOIsByLocationAndRadius20231022(lat, lon, 5000)
 
 		if err != nil {
@@ -129,7 +130,7 @@ func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 			LogInfo(errorMsg.Error())
 			LogInfo(existingData)
 
-			<-semaphore // 释放信号量，允许下一个请求
+			<-semaphorePrePare // 释放信号量，允许下一个请求
 			waitGroup.Done()
 
 			continue
@@ -140,7 +141,7 @@ func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 			LogInfo("已经有这条数据了，跳过了存储")
 			// Data already exists, skip storage
 
-			<-semaphore // 释放信号量，允许下一个请求
+			<-semaphorePrePare // 释放信号量，允许下一个请求
 			waitGroup.Done()
 
 			continue
@@ -153,7 +154,7 @@ func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 			LogInfo("逆地理编码失败")
 			LogInfo(err)
 
-			<-semaphore // 释放信号量，允许下一个请求
+			<-semaphorePrePare // 释放信号量，允许下一个请求
 			waitGroup.Done()
 
 			continue
@@ -165,7 +166,7 @@ func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 
 		adcode, ok := poiData["adcode"].(string)
 		if !ok {
-			<-semaphore // 释放信号量，允许下一个请求
+			<-semaphorePrePare // 释放信号量，允许下一个请求
 			waitGroup.Done()
 
 			continue // 跳过无效的adcode值
@@ -182,7 +183,7 @@ func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 
 		poiJSON, err := json.Marshal(poiData)
 		if err != nil {
-			<-semaphore // 释放信号量，允许下一个请求
+			<-semaphorePrePare // 释放信号量，允许下一个请求
 			waitGroup.Done()
 
 			continue // 跳过无效的JSON序列化
@@ -195,7 +196,7 @@ func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 		bulkPayload.Write(poiJSON)
 		bulkPayload.WriteByte('\n')
 
-		<-semaphore // 释放信号量，允许下一个请求
+		<-semaphorePrePare // 释放信号量，允许下一个请求
 		waitGroup.Done()
 	}
 
