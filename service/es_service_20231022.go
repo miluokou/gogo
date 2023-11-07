@@ -130,9 +130,6 @@ func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 		poiData["location"] = location
 
 		poiService, _ := NewPOIService20231022()
-
-		LogInfo("开始检查点位是否存在于poi中")
-		LogInfo(location)
 		existingData, err := poiService.GetPOIsByLocationAndRadius20231022(lat, lon, 5000)
 
 		if err != nil {
