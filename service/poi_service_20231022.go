@@ -116,13 +116,10 @@ func (s *POIService) GetPOIsByLocationAndRadius20231022(latitude, longitude floa
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
 				"must": []map[string]interface{}{
-					{"match_all": map[string]interface{}{}},
-				},
-				"filter": []map[string]interface{}{
 					{
 						"geo_distance": map[string]interface{}{
-							"distance": fmt.Sprintf("%fm", radius),
-							"location": map[string]float64{
+							"distance": "0.000000000001m",
+							"location": map[string]interface{}{
 								"lat": latitude,
 								"lon": longitude,
 							},
@@ -131,31 +128,32 @@ func (s *POIService) GetPOIsByLocationAndRadius20231022(latitude, longitude floa
 				},
 			},
 		},
-		"size": 10, // 设置每个请求返回的文档数量
+		"size": 1,
 	}
+
 	req.Body = esutil.NewJSONReader(query)
 
 	res, err := req.Do(context.Background(), s.esClient)
 	if err != nil {
-		return POIResult{}, fmt.Errorf("failed to execute search request: %w", err)
+		return POIResult{}, fmt.Errorf("执行搜索请求失败：%w", err)
 	}
 	defer res.Body.Close()
 
 	var response map[string]interface{}
 	if err := json.NewDecoder(res.Body).Decode(&response); err != nil {
-		return POIResult{}, fmt.Errorf("failed to parse search response: %w", err)
+		return POIResult{}, fmt.Errorf("解析搜索响应失败：%w", err)
 	}
 
 	hitsData, ok := response["hits"].(map[string]interface{})
 	if !ok {
-		LogInfo("invalid search response1 的response是：")
+		LogInfo("无效的搜索响应1，响应内容为：")
 		LogInfo(response)
-		return POIResult{}, fmt.Errorf("invalid search response1")
+		return POIResult{}, fmt.Errorf("无效的搜索响应1")
 	}
 
 	hits, ok := hitsData["hits"].([]interface{})
 	if !ok {
-		return POIResult{}, fmt.Errorf("invalid search response2")
+		return POIResult{}, fmt.Errorf("无效的搜索响应2")
 	}
 
 	pois := make([]map[string]interface{}, len(hits))
@@ -164,7 +162,7 @@ func (s *POIService) GetPOIsByLocationAndRadius20231022(latitude, longitude floa
 	for i, hit := range hits {
 		hitData, ok := hit.(map[string]interface{})
 		if !ok {
-			return POIResult{}, fmt.Errorf("invalid search response3")
+			return POIResult{}, fmt.Errorf("无效的搜索响应3")
 		}
 
 		source, ok := hitData["_source"].(map[string]interface{})

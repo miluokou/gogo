@@ -6,6 +6,33 @@ import (
 	"gorm.io/gorm"
 )
 
+var ormDB1 *gorm.DB
+var ormDB2 *gorm.DB
+
+// 获取数据库连接
+func GetOrmDB1() *gorm.DB {
+	return ormDB1
+}
+
+// 获取数据库连接
+func GetOrmDB2() *gorm.DB {
+	return ormDB2
+}
+
+func init() {
+	var err error
+	ormDB1, err = ConnectDatabase()
+	if err != nil {
+		fmt.Printf("ormDB1 Failed to connect to database: %v\n", err)
+		panic(err) // 连接失败时直接抛出异常
+	}
+	ormDB2, err = ConnectBusinessDatabase()
+	if err != nil {
+		fmt.Printf("ormDB2 Failed to connect to database: %v\n", err)
+		panic(err) // 连接失败时直接抛出异常
+	}
+}
+
 func ConnectDatabase() (*gorm.DB, error) {
 	dsn := "anjuke:5YHj73mpbLmMC4A2@tcp(47.100.242.199:3306)/anjuke?charset=utf8mb4&parseTime=True&loc=Local"
 

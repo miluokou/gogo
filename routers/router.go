@@ -35,9 +35,6 @@ func SetupRouter(router *gin.Engine) {
 	router.GET("/produce", controllers.TestEnvProduce)
 	router.GET("/consume", controllers.TestEnvConsume)
 
-	//把mysql的房源数据导入到es中
-	router.GET("/propertydata", controllers.ImportMysqlHoseDataToES)
-
 	// poi 查询
 	router.GET("/poi_around", controllers.PoiAround)
 
@@ -66,6 +63,11 @@ func SetupRouter(router *gin.Engine) {
 
 	//把大的poi文件拆分成小文件 SplitCSV
 	router.POST("/poi/csv/split", csv.SplitFiles)
+
+	//把mysql的房源数据导入到es中
+	router.GET("/propertydata", controllers.ImportMysqlHoseDataToES)
+	//mysql 中的poi 数据 导入到es中
+	router.GET("/mysql_poi_to_es", poi.MysqlPoiToES)
 
 }
 

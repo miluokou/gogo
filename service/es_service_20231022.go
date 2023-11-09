@@ -141,7 +141,8 @@ func prepareBulkPayload20231022(data []map[string]interface{}) []byte {
 
 		pois := existingData.POIs
 		if len(pois) > 0 {
-			LogInfo("已经有这条数据了，跳过存储")
+			LogInfo(fmt.Sprintf("已经有这条数据了，跳过存储，经纬度 %.6f, %.6f 的，跳过处理", lat, lon))
+			LogInfo(pois)
 			continue
 		}
 
