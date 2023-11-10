@@ -8,7 +8,7 @@ import (
 )
 
 func MysqlPoiToES(c *gin.Context) {
-	res, err := orm.GetNonNullDealData(59)
+	res, err := orm.GetNonNullDealData(1000)
 	if err != nil {
 		service.LogInfo(err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "无法获取属性数据111"})
