@@ -13,8 +13,8 @@ func init() {
 	esClientPool = &sync.Pool{
 		New: func() interface{} {
 			cfg := elasticsearch.Config{
-				Addresses: []string{"http://47.100.242.199:9200"}, // 替换为 Elasticsearch 实际的地址
-				Username:  "elastic",                              // 替换为您的 Elasticsearch 用户名
+				Addresses: []string{"http://47.116.7.26:9200"}, // 替换为 Elasticsearch 实际的地址
+				Username:  "elastic",                           // 替换为您的 Elasticsearch 用户名
 				Password:  "miluokou",
 			}
 			client, err := elasticsearch.NewClient(cfg)

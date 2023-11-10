@@ -15,12 +15,12 @@ func InitDatabase() {
 	var err error
 	var err2 error
 
-	db, err = sql.Open("mysql", "go_project:rkZSJjmz5ZMSZKmm@tcp(47.100.242.199:3306)/go_project")
+	db, err = sql.Open("mysql", "go_project:rkZSJjmz5ZMSZKmm@tcp(47.116.7.26:3306)/go_project")
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
 
-	db2, err2 = sql.Open("mysql", "anjuke:5YHj73mpbLmMC4A2@tcp(47.100.242.199:3306)/anjuke")
+	db2, err2 = sql.Open("mysql", "anjuke:5YHj73mpbLmMC4A2@tcp(47.116.7.26:3306)/anjuke")
 	if err2 != nil {
 		log.Fatal("Failed to connect to database:", err2)
 	}

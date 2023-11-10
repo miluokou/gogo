@@ -14,7 +14,7 @@ func GetTopics(c *gin.Context) {
 	config.Version = sarama.V2_5_0_0 // 设置 Kafka 版本号
 
 	// 连接到 Kafka 服务器
-	client, err := sarama.NewClient([]string{"47.100.242.199:9092"}, config)
+	client, err := sarama.NewClient([]string{"47.116.7.26:9092"}, config)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

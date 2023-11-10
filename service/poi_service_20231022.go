@@ -52,22 +52,7 @@ func WaitForFileDescriptors(desiredLimit uint64, delay time.Duration) {
 			time.Sleep(delay)
 			continue
 		}
-
-		// 根据当前文件描述符数量设置新的限制
-		//currentLimitTanXing, err := getCurrentFileDescriptorLimitTanXing()
-		//LogInfo("期望限定的数量为")
-		//LogInfo(desiredLimit)
-		//LogInfo("当前打开文件的数量为")
-		//LogInfo(currentLimitTanXing)
-		//if err != nil {
-		//	LogInfo("无法设置文件描述符限制：" + err.Error())
-		//	time.Sleep(delay)
-		//	continue
-		//}
-
 		break
-		//LogInfo("增加文件描述符限制并等待 " + delay.String() + " 后重试...")
-		//time.Sleep(delay)
 	}
 }
 

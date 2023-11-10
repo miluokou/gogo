@@ -34,7 +34,7 @@ func init() {
 }
 
 func ConnectDatabase() (*gorm.DB, error) {
-	dsn := "anjuke:5YHj73mpbLmMC4A2@tcp(47.100.242.199:3306)/anjuke?charset=utf8mb4&parseTime=True&loc=Local"
+	dsn := "anjuke:5YHj73mpbLmMC4A2@tcp(47.116.7.26:3306)/anjuke?charset=utf8mb4&parseTime=True&loc=Local"
 
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
@@ -46,7 +46,7 @@ func ConnectDatabase() (*gorm.DB, error) {
 
 func ConnectBusinessDatabase() (*gorm.DB, error) {
 	fmt.Printf("ConnectBusinessDatabase==========================")
-	dsn := "go_project:rkZSJjmz5ZMSZKmm@tcp(47.100.242.199:3306)/go_project?charset=utf8mb4&parseTime=True&loc=Local"
+	dsn := "go_project:rkZSJjmz5ZMSZKmm@tcp(47.116.7.26:3306)/go_project?charset=utf8mb4&parseTime=True&loc=Local"
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		fmt.Printf("Failed to connect to database: %v\n", err)

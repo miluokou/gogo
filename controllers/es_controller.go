@@ -48,7 +48,7 @@ type PlaceSearchResult struct {
 
 //func createESClient() (*elasticsearch.Client, error) {
 //	cfg := elasticsearch.Config{
-//		Addresses: []string{"http://47.100.242.199:9200"},
+//		Addresses: []string{"http://47.116.7.26:9200"},
 //		Username:  "elastic",
 //		Password:  "miluokou",
 //	}
