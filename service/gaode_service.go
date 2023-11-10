@@ -114,7 +114,7 @@ func (s *AMapService) ReverseGeocode(latitude, longitude float64) (map[string]in
 
 	baseURL := "https://restapi.amap.com/v3/geocode/regeo"
 	apiURL, err := url.Parse(baseURL)
-	time.Sleep(time.Duration(rand.Intn(500)+1000) * time.Millisecond) // 随机延迟0.5到2秒
+	time.Sleep(time.Duration(rand.Intn(300)+500) * time.Millisecond) // 随机延迟0.5到2秒
 
 	if err != nil {
 		return nil, err
