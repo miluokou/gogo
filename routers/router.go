@@ -55,8 +55,11 @@ func SetupRouter(router *gin.Engine) {
 	//添加文件生成器
 	router.POST("/generate/createAst", generate.CreateAst)
 
-	//ocr识别，图片转化成excel
+	//ocr识别，图片转化成excel 谷歌方案
 	router.POST("/ocr", ocr.ConvertToCSV)
+	//百度cor识别方案
+	router.POST("/ocr", ocr.ConvertToCSV)
+
 	// 注意：此处不需要返回任何内容，因为我们是直接修改传入的 `router` 对象
 	//导入csv文件到es中
 	router.GET("/poi/import_poi_data_into_es", poi.CsvToPoi)
