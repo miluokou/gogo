@@ -30,19 +30,6 @@
 	</head>
 	<body>
 		<div id="container"></div>
-		<div class="input-card" style="width:24rem;">
-			<h4>添加、删除覆盖物</h4>
-			<div class="input-item">
-				<label>Circle：</label>
-				<button class="btn" id="add-circle" style="margin-right:1rem;">添加Circle</button>
-				<button class="btn" id="remove-circle">删除Circle</button>
-			</div>
-			<div class="input-item">
-				<label>Rectangle：</label>
-				<button class="btn" id="add-rectangle" style="margin-right:1rem;">添加Rectangle</button>
-				<button class="btn" id="remove-rectangle">删除Rectangle</button>
-			</div>
-		</div>
 		<script src="https://webapi.amap.com/maps?v=2.0&key=a7e7f4627788a84cc785e95ee11a4bb4"></script>
 		<script>
 			var map = new AMap.Map('container', {
@@ -50,37 +37,32 @@
 				zoom: 11,
 				center: [116.397428, 39.90923]
 			});
-			// 构造矢量圆形
-			var circle = new AMap.Circle({
-				center: new AMap.LngLat("116.403322", "39.920255"), // 圆心位置
-				radius: 1000, //半径
-				strokeColor: "#F33", //线颜色
-				strokeOpacity: 1, //线透明度
-				strokeWeight: 3, //线粗细度
-				fillColor: "#ee2200", //填充颜色
-				fillOpacity: 0.35 //填充透明度
-			});
 
 			function calculateDestinationPoint(center, distance, bearing) {
-				var radius = 6371; // 地球半径（单位：千米）
-				var angularDistance = distance / radius;
-				var initialLatRad = center[1] * Math.PI / 180;
-				var initialLngRad = center[0] * Math.PI / 180;
-				var bearingRad = bearing * Math.PI / 180;
-
-				var newLatRad = Math.asin(Math.sin(initialLatRad) * Math.cos(angularDistance) + Math.cos(initialLatRad) * Math
-					.sin(angularDistance) * Math.cos(bearingRad));
-				var newLngRad = initialLngRad + Math.atan2(Math.sin(bearingRad) * Math.sin(angularDistance) * Math.cos(
-					initialLatRad), Math.cos(angularDistance) - Math.sin(initialLatRad) * Math.sin(newLatRad));
-
-				var newLat = newLatRad * 180 / Math.PI;
-				var newLng = newLngRad * 180 / Math.PI;
-
-				return [newLng, newLat];
+			    var radius = 6378137; // 地球半径（单位：米）
+			    var angularDistance = distance / radius;
+			    var initialLatRad = center[1] * Math.PI / 180.0;
+			    var initialLngRad = center[0] * Math.PI / 180.0;
+			    var bearingRad = bearing * Math.PI / 180.0;
+			
+			    var sinInitialLat = Math.sin(initialLatRad);
+			    var cosInitialLat = Math.cos(initialLatRad);
+			    var sinAngularDistance = Math.sin(angularDistance);
+			    var cosAngularDistance = Math.cos(angularDistance);
+			    var sinBearing = Math.sin(bearingRad);
+			    var cosBearing = Math.cos(bearingRad);
+			
+			    var newLatRad = Math.asin(sinInitialLat * cosAngularDistance + cosInitialLat * sinAngularDistance * cosBearing);
+			    var newLngRad = initialLngRad + Math.atan2(sinBearing * sinAngularDistance * cosInitialLat, cosAngularDistance - sinInitialLat * Math.sin(newLatRad));
+			
+			    var newLat = newLatRad * 180.0 / Math.PI;
+			    var newLng = newLngRad * 180.0 / Math.PI;
+			
+			    return [newLng, newLat];
 			}
 
 			var center = [116.399448, 39.92779]; // 正方形的中心点坐标
-			var sideLength = 2.9; // 正方形的边长
+			var sideLength = 2999; // 正方形的边长
 
 			// 计算正方形的四个顶点坐标
 			var southwest = calculateDestinationPoint(center, sideLength / Math.sqrt(2), 225);
@@ -88,10 +70,6 @@
 			var northeast = calculateDestinationPoint(center, sideLength / Math.sqrt(2), 45);
 			var southeast = calculateDestinationPoint(center, sideLength / Math.sqrt(2), 315);
 
-			console.log("Southwest:", southwest);
-			console.log("Northwest:", northwest);
-			console.log("Northeast:", northeast);
-			console.log("Southeast:", southeast);
 
 			var bounds = new AMap.Bounds(southwest, northeast);
 			var rectangle = new AMap.Rectangle({
@@ -146,20 +124,4 @@
 
 			map.add(rectangle);
 			
-			// document.querySelector("#add-circle").onclick = function() {
-			// 	map.add(circle);
-			// 	map.setFitView();
-			// }
-			// document.querySelector("#remove-circle").onclick = function() {
-			// 	map.remove(circle);
-			// 	map.setFitView();
-			// }
-			// document.querySelector("#add-rectangle").onclick = function() {
-			// 	map.add(rectangle);
-			// 	map.setFitView();
-			// }
-			// document.querySelector("#remove-rectangle").onclick = function() {
-			// 	map.remove(rectangle);
-			// 	map.setFitView();
-			// }
 		</script>r
