@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>绘制中国围栏</title>
+  <style type="text/css">
+    #mapContainer {
+      width: 100%;
+      height: 400px;
+    }
+  </style>
+</head>
+<body>
+<div id="mapContainer"></div>
+
+<script src="https://webapi.amap.com/maps?v=2.0&key=a7e7f4627788a84cc785e95ee11a4bb4"></script>
+<script>
+  // 初始化地图
+  var map = new AMap.Map('mapContainer', {
+    center: [104.06667, 30.66667], // 设置地图中心点经纬度
+    zoom: 5 // 设置地图缩放级别
+  });
+
+  // 解析围栏数据并绘制在地图上
+  function drawFences(fences) {
+    var paths = fences.split("|");
+    for (var i = 0; i < paths.length; i++) {
+      var path = paths[i].split(";");
+
+      var coordinates = [];
+      for (var j = 0; j < path.length; j++) {
+        var coordinate = path[j].split(",");
+        var lng = parseFloat(coordinate[0]);
+        var lat = parseFloat(coordinate[1]);
+        coordinates.push(new AMap.LngLat(lng, lat));
+      }
+
+      // 创建多边形覆盖物
+      var polygon = new AMap.Polygon({
+        path: coordinates,
+        fillColor: '#00FF00',
+        fillOpacity: 0.4,
+        strokeColor: '#0000FF', // 修改为深蓝色
+        strokeWeight: 2,
+        strokeStyle: 'solid' // 添加实线样式
+      });
+
+      // 将多边形添加到地图上
+      map.add(polygon);
+    }
+  }
+
+  function readFencesData() {
+    fetch('https://restapi.amap.com/v3/config/district?key=cb3e60dc70d48516d5d19ccaa000ae37&keywords=%E4%B8%AD%E5%9B%BD&subdistrict=0&extensions=all')
+            .then(function(response) {
+              return response.json();
+            })
+            .then(function(data) {
+              console.log(data);
+
+              if (data.districts && data.districts.length > 0) {
+                var districts = data.districts;
+                var fencesData = "";
+
+                for (var i = 0; i < districts.length; i++) {
+                  var district = districts[i];
+                  var polylineData = district.polyline; // 获取每个区域的围栏数据
+
+                  // 将围栏数据拼接到结果中
+                  fencesData += polylineData + "|";
+                }
+
+                if (fencesData.length > 0) {
+                  fencesData = fencesData.slice(0, -1); // 去除末尾的分隔符 |
+                  drawFences(fencesData);
+                }
+              }
+            })
+            .catch(function(error) {
+              console.log('Error reading fences data:', error);
+            });
+  }
+
+
+  // 调用读取围栏数据的函数
+  readFencesData();
+
+</script>
+</body>
+</html>

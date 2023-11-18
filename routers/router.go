@@ -14,6 +14,15 @@ import (
 )
 
 func SetupRouter(router *gin.Engine) {
+	router.LoadHTMLGlob("view/*")
+	//web文件
+	router.GET("/web/china_fence", func(c *gin.Context) {
+		// 使用HTML模板渲染网页
+		c.HTML(http.StatusOK, "chinafence.html", gin.H{
+			"title": "Hello, World!",
+		})
+	})
+
 	// 添加中间件
 	router.Use(ResponseMiddleware())
 
@@ -58,7 +67,7 @@ func SetupRouter(router *gin.Engine) {
 	//ocr识别，图片转化成excel 谷歌方案
 	router.POST("/ocr", ocr.ConvertToCSV)
 	//百度cor识别方案
-	router.POST("/ocr", ocr.ConvertToCSV)
+	//router.POST("/ocr", ocr.ConvertToCSV)
 
 	// 注意：此处不需要返回任何内容，因为我们是直接修改传入的 `router` 对象
 	//导入csv文件到es中
@@ -71,6 +80,9 @@ func SetupRouter(router *gin.Engine) {
 	router.GET("/propertydata", controllers.ImportMysqlHoseDataToES)
 	//mysql 中的poi 数据 导入到es中
 	router.GET("/mysql_poi_to_es", poi.MysqlPoiToES)
+
+	//数据采集，中国分块
+	router.GET("/china_division", controllers.GetLandParcels)
 
 }
 
