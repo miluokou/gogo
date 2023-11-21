@@ -45,7 +45,7 @@ func GridPartition(pageNumber int) []LandParcel {
 
 	gridSize := 0.03 // 修改为0.03以获得3公里的网格
 
-	pageSize := 100 // 每页的网格数量
+	pageSize := 1000 // 每页的网格数量
 
 	startIndex := (pageNumber - 1) * pageSize
 	endIndex := pageNumber * pageSize
@@ -60,46 +60,10 @@ func GridPartition(pageNumber int) []LandParcel {
 			Province:  "",
 			City:      "", // 根据实际需求设置城市名称
 			District:  "", // 根据实际需求设置区县名称
-			FenceData: strings.Join(gridData, "|"),
+			FenceData: value,
 			Center:    centerPoint,
 		}
 		parcels = append(parcels, parcel)
-
-		//coords := strings.Split(centerPoint, ",")
-		//lon, _ := strconv.ParseFloat(coords[0], 64)
-		//lat, _ := strconv.ParseFloat(coords[1], 64)
-		//regeocodes, _ := gaoDeService.ReverseGeocode(lat, lon)
-		//service.LogInfo(regeocodes)
-
-		//if regeocodes != nil {
-		//	addressComponent, ok := regeocodes["addressComponent"].(map[string]interface{})
-		//	if ok && addressComponent["adcode"] != nil {
-		//		adcodeValue := addressComponent["adcode"]
-		//
-		//		switch adcode := adcodeValue.(type) {
-		//		case string:
-		//			_, err := strconv.Atoi(adcode)
-		//			if err == nil {
-		//				// adcode值为数值类型的字符串
-		//				service.LogInfo("adcode: " + adcode)
-		//				service.LogInfo(regeocodes["addressComponent"])
-		//				os.Exit(1)
-		//			} else {
-		//				// adcode值不是数值类型的字符串
-		//				service.LogInfo(centerPoint + " adcode is not a numeric string")
-		//			}
-		//		default:
-		//			// adcode值为其他类型
-		//			service.LogInfo(centerPoint + " adcode is of invalid type")
-		//		}
-		//	} else {
-		//		// adcode值不存在或为空
-		//		service.LogInfo(centerPoint + " adcode is missing or empty")
-		//	}
-		//} else {
-		//	service.LogInfo(centerPoint + " regeocodes is nil")
-		//}
-
 	}
 	return parcels
 }
