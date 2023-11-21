@@ -45,7 +45,7 @@ func GridPartition(pageNumber int) []LandParcel {
 
 	gridSize := 0.03 // 修改为0.03以获得3公里的网格
 
-	pageSize := 1000 // 每页的网格数量
+	pageSize := 100 // 每页的网格数量
 
 	startIndex := (pageNumber - 1) * pageSize
 	endIndex := pageNumber * pageSize
