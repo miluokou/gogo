@@ -22,6 +22,8 @@ func SetupRouter(router *gin.Engine) {
 			"title": "Hello, World!",
 		})
 	})
+	//获取高德网格数据
+	router.GET("/china_girds", poi.CalculateGrid)
 
 	// 添加中间件
 	router.Use(ResponseMiddleware())
@@ -76,8 +78,9 @@ func SetupRouter(router *gin.Engine) {
 	//把大的poi文件拆分成小文件 SplitCSV
 	router.POST("/poi/csv/split", csv.SplitFiles)
 
-	//把mysql的房源数据导入到es中
+	//把python存储的mysql的房源数据导入到es中
 	router.GET("/propertydata", controllers.ImportMysqlHoseDataToES)
+
 	//mysql 中的poi 数据 导入到es中
 	router.GET("/mysql_poi_to_es", poi.MysqlPoiToES)
 

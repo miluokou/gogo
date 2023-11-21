@@ -24,15 +24,22 @@
   // 解析围栏数据并绘制在地图上
   function drawFences(fences) {
     var paths = fences.split("|");
+
     for (var i = 0; i < paths.length; i++) {
       var path = paths[i].split(";");
-
       var coordinates = [];
+
       for (var j = 0; j < path.length; j++) {
         var coordinate = path[j].split(",");
         var lng = parseFloat(coordinate[0]);
         var lat = parseFloat(coordinate[1]);
-        coordinates.push(new AMap.LngLat(lng, lat));
+
+        if (isNaN(lng) || isNaN(lat)) {
+          // 打印有问题的经纬度组合
+          console.log("Invalid coordinate:", coordinate);
+        } else {
+          coordinates.push(new AMap.LngLat(lng, lat));
+        }
       }
 
       // 创建多边形覆盖物
@@ -40,18 +47,17 @@
         path: coordinates,
         fillColor: '#00FF00',
         fillOpacity: 0.4,
-        strokeColor: '#0000FF', // 修改为深蓝色
+        strokeColor: '#0000FF',
         strokeWeight: 2,
-        strokeStyle: 'solid' // 添加实线样式
+        strokeStyle: 'solid'
       });
 
       // 将多边形添加到地图上
       map.add(polygon);
     }
   }
-
-  function readFencesData() {
-    fetch('https://restapi.amap.com/v3/config/district?key=cb3e60dc70d48516d5d19ccaa000ae37&keywords=%E4%B8%AD%E5%9B%BD&subdistrict=0&extensions=all')
+  function readFencesGoData() {
+    fetch('http://127.0.0.1:9090/china_girds?page=68')
             .then(function(response) {
               return response.json();
             })
@@ -80,10 +86,9 @@
               console.log('Error reading fences data:', error);
             });
   }
+  readFencesGoData();
 
 
-  // 调用读取围栏数据的函数
-  readFencesData();
 
 </script>
 </body>

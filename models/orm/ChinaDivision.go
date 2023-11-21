@@ -13,6 +13,7 @@ type LandParcel struct {
 	District  string `gorm:"column:district"`
 	FenceData string `gorm:"column:fence_data"`
 	Center    string `gorm:"column:center"`
+	Page      string `gorm:"column:page"`
 }
 
 // TableName 设置 LandParcel 表名为 "land_parcel"
@@ -21,7 +22,7 @@ func (LandParcel) TableName() string {
 }
 
 // CreateLandParcel 创建地块数据
-func CreateLandParcel(province, city, district, fenceData, center string) error {
+func CreateLandParcel(province, city, district, fenceData, center, page string) error {
 	ormDB := utils.GetOrmDB2()
 	//_ = ormDB.AutoMigrate(&LandParcel{})
 	//os.Exit(1)
@@ -31,6 +32,7 @@ func CreateLandParcel(province, city, district, fenceData, center string) error 
 		District:  district,
 		FenceData: fenceData,
 		Center:    center,
+		Page:      page,
 	}
 	result := ormDB.Create(&parcel)
 	if result.Error != nil {
