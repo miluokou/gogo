@@ -87,6 +87,8 @@ func SetupRouter(router *gin.Engine) {
 	//数据采集，中国分块
 	router.GET("/china_division", controllers.GetLandParcels)
 
+	//逆地理编码分块中心点
+	router.GET("/reverse_geocoding_block_center_point", controllers.ReverseGeocodingBlockCenterPoint)
 }
 
 func ResponseMiddleware() gin.HandlerFunc {

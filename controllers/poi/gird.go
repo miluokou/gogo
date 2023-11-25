@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"mvc/models/orm"
 	"net/http"
 	"strconv"
 	"strings"
@@ -30,15 +31,18 @@ func CalculateGrid(c *gin.Context) {
 		return
 	}
 
-	gridSize := 0.03 // 修改为0.03以获得3公里的网格
+	//gridSize := 0.03 // 修改为0.03以获得3公里的网格
 
-	pageSize := 10000                              // 每页的网格数量
-	pageNumber, _ := strconv.Atoi(c.Query("page")) // 获取当前页码，默认为第1页
+	pageSize := 10000 // 每页的网格数量
+	//pageNumber, _ := strconv.Atoi(c.Query("page")) // 获取当前页码，默认为第1页
 
-	startIndex := (pageNumber - 1) * pageSize
-	endIndex := pageNumber * pageSize
+	//startIndex := (pageNumber - 1) * pageSize
+	//endIndex := pageNumber * pageSize
 	// 调用生成网格数据的方法
-	gridData := GenerateGridData(data, gridSize, startIndex, endIndex)
+	//gridData := GenerateGridData(data, gridSize, startIndex, endIndex)
+
+	// 从mysql 中获取最新的网格的计算情况
+	gridData := GenerateGridDataFromMysql(pageSize)
 
 	data["districts"].([]interface{})[0].(map[string]interface{})["polyline"] = strings.Join(gridData, "|")
 
@@ -123,5 +127,14 @@ func GenerateGridData(data map[string]interface{}, gridSize float64, startIndex 
 		}
 	}
 
+	return gridData
+}
+
+func GenerateGridDataFromMysql(pageSize int) []string {
+	var gridData []string
+	properties, _ := orm.GetLandParcel(pageSize)
+	for _, value := range properties {
+		gridData = append(gridData, value.FenceData)
+	}
 	return gridData
 }

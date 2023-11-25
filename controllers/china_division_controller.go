@@ -122,6 +122,73 @@ func GetLandParcels(c *gin.Context) {
 	c.JSON(200, parcels)
 }
 
+func ReverseGeocodingBlockCenterPoint(c *gin.Context) {
+	properties, _ := orm.GetLandParcelNotDeal(1000)
+	gaoDeService := service.NewAMapService()
+
+	// 创建一个带缓冲的channel来控制并发请求数量
+	for _, value := range properties {
+		parts := strings.Split(value.Center, ",")
+		// 解析经度和纬度值
+		longitude, _ := strconv.ParseFloat(strings.TrimSpace(parts[0]), 64)
+		latitude, _ := strconv.ParseFloat(strings.TrimSpace(parts[1]), 64)
+
+		regeocodes, err := gaoDeService.ReverseGeocodeNoLimit(latitude, longitude)
+		service.LogInfo("逆地理的结果是：")
+		service.LogInfo(regeocodes)
+		city := ""
+		province := ""
+		adcode := ""
+		district := ""
+		towncode := ""
+		township := ""
+		formatted_address := ""
+
+		keys := map[string]*string{
+			"city":     &city,
+			"province": &province,
+			"adcode":   &adcode,
+			"district": &district,
+			"towncode": &towncode,
+			"township": &township,
+		}
+
+		if value, ok := regeocodes["formatted_address"]; ok {
+			if formattedAddress, ok := value.(string); ok {
+				formatted_address = formattedAddress
+				service.LogInfo(formatted_address)
+			}
+		}
+		for key, ptr := range keys {
+			if value, ok := regeocodes["addressComponent"].(map[string]interface{})[key]; ok {
+				if strValue, ok := value.(string); ok {
+					*ptr = strValue
+					service.LogInfo(*ptr)
+				}
+			}
+		}
+
+		newData := map[string]interface{}{
+			"City":             city,
+			"Province":         province,
+			"Adcode":           adcode,
+			"District":         district,
+			"Towncode":         towncode,
+			"Township":         township,
+			"FormattedAddress": formatted_address,
+			"Deal":             "1",
+		}
+
+		if err != nil {
+			service.LogInfo("逆地理编码失败")
+			service.LogInfo(err)
+			//continue
+		} else {
+			orm.UpdateLandParcel(value.ID, newData)
+		}
+	}
+}
+
 func GetCenterPoint(fenceData string) string {
 	// 解析围栏数据
 	points := parseFenceData(fenceData)

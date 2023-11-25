@@ -99,9 +99,9 @@ func (s *AMapService) ReverseGeocode(latitude, longitude float64) (map[string]in
 	s.CacheMutex.RUnlock()
 
 	if ok && !cachedResult.Expiration.Before(time.Now()) {
+		LogInfo("走的缓存")
 		return cachedResult.RawData, nil
 	}
-
 	s.WaitLock.Lock()
 	if s.PendingCount >= s.Concurrent {
 		s.WaitCond.Wait() // 等待空闲槽位
@@ -132,7 +132,6 @@ func (s *AMapService) ReverseGeocode(latitude, longitude float64) (map[string]in
 
 	query := queryString.Encode()
 	apiURL.RawQuery = query
-
 	resp, err := http.Get(apiURL.String())
 	if err != nil {
 		return nil, err
@@ -148,7 +147,6 @@ func (s *AMapService) ReverseGeocode(latitude, longitude float64) (map[string]in
 	if err != nil {
 		return nil, err
 	}
-
 	regeocodes, ok := result["regeocode"].(map[string]interface{})
 	if !ok {
 		LogInfo("高德返回的结果是:")
@@ -163,6 +161,66 @@ func (s *AMapService) ReverseGeocode(latitude, longitude float64) (map[string]in
 		Expiration: time.Now().Add(s.CacheDuration),
 	}
 	s.CacheMutex.Unlock()
+
+	return regeocodes, nil
+}
+
+/**
+* 这个方法主要是处理不限流，因为限流好像会导致mysql每次导入只能导入进去10条
+ */
+func (s *AMapService) ReverseGeocodeNoLimit(latitude, longitude float64) (map[string]interface{}, error) {
+	coordinateKey := fmt.Sprintf("%.6f,%.6f", latitude, longitude)
+
+	// 先尝试从缓存中获取数据
+	s.CacheMutex.RLock()
+	cachedResult, ok := s.Cache[coordinateKey]
+	s.CacheMutex.RUnlock()
+
+	if ok && !cachedResult.Expiration.Before(time.Now()) {
+		LogInfo("走的缓存")
+		return cachedResult.RawData, nil
+	}
+
+	baseURL := "https://restapi.amap.com/v3/geocode/regeo"
+	apiURL, err := url.Parse(baseURL)
+	//time.Sleep(time.Duration(rand.Intn(300)+500) * time.Millisecond) // 随机延迟0.5到2秒
+
+	if err != nil {
+		return nil, err
+	}
+
+	queryString := apiURL.Query()
+	queryString.Set("key", s.APIKey)
+	queryString.Set("location", fmt.Sprintf("%.6f,%.6f", longitude, latitude))
+
+	query := queryString.Encode()
+	apiURL.RawQuery = query
+	resp, err := http.Get(apiURL.String())
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, errors.New("获取逆地理编码数据失败")
+	}
+
+	var result map[string]interface{}
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	if err != nil {
+		return nil, err
+	}
+	regeocodes, ok := result["regeocode"].(map[string]interface{})
+	if !ok {
+		LogInfo("高德返回的结果是:")
+		LogInfo(result)
+		return nil, errors.New("无法提取逆地理编码数据")
+	}
+
+	s.Cache[coordinateKey] = GeocodeResult{
+		RawData:    regeocodes,
+		Expiration: time.Now().Add(s.CacheDuration),
+	}
 
 	return regeocodes, nil
 }
