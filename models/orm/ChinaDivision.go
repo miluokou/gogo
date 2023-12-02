@@ -57,7 +57,7 @@ func CreateLandParcel(province, city, district, fenceData, center, page string) 
 func GetLandParcel(count int) ([]LandParcel, error) {
 	ormDB := utils.GetOrmDB2()
 	var properties []LandParcel
-	result := ormDB.Order("id DESC").Limit(count).Find(&properties)
+	result := ormDB.Order("id DESC").Where("formatted_address !=''").Where("city !=''").Limit(count).Find(&properties)
 	if result.Error != nil {
 		service.LogInfo(result.Error)
 		return nil, result.Error

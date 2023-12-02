@@ -1,27 +1,46 @@
 package generate
 
 import (
-	"fmt"
+	"context"
+	"github.com/chromedp/cdproto/page"
+	"github.com/chromedp/chromedp"
 	"github.com/gin-gonic/gin"
 	"io/ioutil"
+	"log"
+	"mvc/service"
+	"time"
 )
 
 func CreateAst(c *gin.Context) {
-	packageName := "job"       // 自定义 method 变量名
-	methodName := "testMethod" // 自定义 method 变量名
+	ctx, cancel := chromedp.NewContext(context.Background(), chromedp.WithDebugf(log.Printf))
+	defer cancel()
 
-	code := fmt.Sprintf(`
-package %s
+	var pdfBuf []byte
 
-import "fmt"
+	// 设置等待加载完成的超时时间
+	waitTimeout := 70 * time.Second
+	ctx, cancel = context.WithTimeout(ctx, waitTimeout)
+	defer cancel()
 
-func %s() {
-	fmt.Println("Hello, World!")
-}`, packageName, methodName)
-
-	// 将代码字符串写入新文件
-	err := ioutil.WriteFile(fmt.Sprintf("controllers/job/%s.go", methodName), []byte(code), 0644)
+	err := chromedp.Run(ctx,
+		chromedp.Navigate("https://www.miluokou.com"),
+		//chromedp.WaitVisible("#head_wrapper .s_btn"), // Wait for the element to be visible
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			var err error
+			pdfBuf, _, err = page.PrintToPDF().Do(ctx)
+			return err
+		}),
+	)
 	if err != nil {
-		panic(err)
+		service.LogInfo(err)
+	}
+
+	if len(pdfBuf) > 0 {
+		err = ioutil.WriteFile("output3.pdf", pdfBuf, 0644)
+		if err != nil {
+			service.LogInfo(err)
+		}
+	} else {
+		service.LogInfo("Empty PDF buffer")
 	}
 }

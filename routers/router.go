@@ -63,8 +63,8 @@ func SetupRouter(router *gin.Engine) {
 	//11 暂无数据的任务添加
 	router.POST("/addNoDataJobs", job.AddNoDataJobs)
 
-	//添加文件生成器
-	router.POST("/generate/createAst", generate.CreateAst)
+	//chromedp 试一下chromedp是否能把网页转化为pdf
+	router.POST("/chromedp", generate.CreateAst)
 
 	//ocr识别，图片转化成excel 谷歌方案
 	router.POST("/ocr", ocr.ConvertToCSV)
@@ -89,6 +89,7 @@ func SetupRouter(router *gin.Engine) {
 
 	//逆地理编码分块中心点
 	router.GET("/reverse_geocoding_block_center_point", controllers.ReverseGeocodingBlockCenterPoint)
+
 }
 
 func ResponseMiddleware() gin.HandlerFunc {
