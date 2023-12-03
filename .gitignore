@@ -9,10 +9,10 @@ dist
 dist-ssr
 *.local
 config.yaml
-/ThorUI-uni-vip1/node_modules/
-/ThorUI-uni-vip1/dist/
-/ThorUI-uni-vip1/unpackage/
-/ThorUI-uni-vip1/.DS_Store
-/ThorUI-uni-vip1/.hbuilderx/
-/ThorUI-uni-vip1/uniCloud-aliyun/
-/ThorUI-uni-vip1/uni_modules/
+/thor/node_modules/
+/thor/dist/
+/thor/unpackage/
+/thor/.DS_Store
+/thor/.hbuilderx/
+/thor/uniCloud-aliyun/
+/thor/uni_modules/
