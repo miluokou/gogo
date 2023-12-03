@@ -25,6 +25,13 @@ func SetupRouter(router *gin.Engine) {
 	//获取高德网格数据
 	router.GET("/china_girds", poi.CalculateGrid)
 
+	//基础报告页面
+	router.GET("/base_report", func(c *gin.Context) {
+		// 使用HTML模板渲染网页
+		c.HTML(http.StatusOK, "basereport.html", gin.H{
+			"title": "Hello, World!",
+		})
+	})
 	// 添加中间件
 	router.Use(ResponseMiddleware())
 

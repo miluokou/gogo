@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>高德地图点位分布与ECharts表格数据</title>
+    <style>
+        #mapContainer {
+            width: 60%;
+            height: 400px;
+            display: inline-block;
+        }
+        #chartContainer, #tableContainer {
+            width: 30%;
+            height: 400px;
+            display: inline-block;
+            margin-top: 20px;
+        }
+
+        @media screen and (max-width: 768px) {
+            #mapContainer, #chartContainer, #tableContainer {
+                width: 100%;
+                display: block;
+            }
+        }
+    </style>
+
+    <!-- 引入高德地图API -->
+    <script src="https://webapi.amap.com/maps?v=2.0&key=a7e7f4627788a84cc785e95ee11a4bb4"></script>
+    <!-- 引入ECharts库 -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.3.0/dist/echarts.min.js"></script>
+</head>
+<body>
+<h1>高德地图点位分布与ECharts表格数据</h1>
+<div id="mapContainer"></div>
+<div id="chartContainer"></div>
+<div id="tableContainer"></div>
+<script>
+    // 地图初始化
+    var lng = 116.397428; // 地图初始中心点经度
+    var lat = 39.90923; // 地图初始中心点纬度
+    var map = new AMap.Map('mapContainer', {
+        center: [lng, lat],
+        zoom: 12,
+    });
+
+    // 添加中心点圆形
+    var circleCenter = map.getCenter();
+    var circleRadius = 2000; // 圆的半径，单位：米
+    var circle = new AMap.Circle({
+        center: circleCenter,
+        radius: circleRadius,
+        fillColor: '#0000ff',
+        fillOpacity: 0.2,
+        strokeWeight: 1,
+        strokeColor: '#0000ff',
+        strokeOpacity: 0.5,
+    });
+    map.add(circle);
+
+    // 在圆内均匀打散点
+    var markerCount = 10; // 散点数量
+    var path = circle.getPath();
+    var step = Math.floor(path.length / markerCount);
+    var markers = [];
+    for (var i = 0; i < markerCount; i++) {
+        markers.push(new AMap.Marker({
+            position: path[i * step],
+            icon: new AMap.Icon({
+                size: new AMap.Size(20, 20),
+                image: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_b.png',
+                imageSize: new AMap.Size(20, 20)
+            })
+        }));
+    }
+    map.add(markers);
+
+    // ECharts表格数据初始化
+    var chart = echarts.init(document.getElementById('chartContainer'));
+
+    // 模拟表格数据
+    var data = [
+        { name: '北京', value: 100 },
+        { name: '上海', value: 200 },
+        { name: '广州', value: 150 },
+        { name: '深圳', value: 180 },
+        { name: '杭州', value: 120 }
+    ];
+
+    // 表格配置项
+    var option = {
+        title: {
+            text: '城市销售量统计'
+        },
+        tooltip: {},
+        xAxis: {
+            type: 'category',
+            data: data.map(function (item) {
+                return item.name;
+            })
+        },
+        yAxis: {},
+        series: [{
+            name: '销量',
+            type: 'bar',
+            data: data.map(function (item) {
+                return item.value;
+            })
+        }]
+    };
+
+    // 渲染ECharts表格
+    chart.setOption(option);
+
+    // ECharts表格数据初始化
+    var table = echarts.init(document.getElementById('tableContainer'));
+
+    // 表格配置项
+    var option = {
+        title: {
+            text: '城市销售量统计',
+            textStyle: {
+                color: 'blue'
+            }
+        },
+        tooltip: {
+            trigger: 'axis'
+        },
+        xAxis: {
+            type: 'category',
+            data: ['北京', '上海', '广州', '深圳', '杭州'],
+            axisLabel: {
+                color: 'blue'
+            }
+        },
+        yAxis: {
+            type: 'value',
+            axisLabel: {
+                color: 'blue'
+            }
+        },
+        series: [{
+            name: '销量',
+            type: 'bar',
+            data: [100, 200, 150, 180, 120],
+            itemStyle: {
+                color: '#0000ff'
+            }
+        }]
+    };
+
+    // 渲染ECharts表格
+    table.setOption(option);
+</script>
+</body>
+</html>
