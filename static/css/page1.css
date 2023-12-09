@@ -1,0 +1,32 @@
+body {
+    background-color: #F5F8FC; /* 更改为商业气息更重的背景颜色 */
+    color: #333333;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+#page1 {
+    background-color: #007BFF; /* 更改为蓝色主题的背景颜色 */
+    box-shadow: 0px 4px 10px rgba(7, 123, 255, 0.1);
+    color: #FFFFFF; /* 将字体颜色修改为白色，增强对比度 */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    text-align: center;
+    padding: 40px;
+}
+
+#page1 h1 {
+    font-size: 48px;
+    font-weight: bold;
+    margin-bottom: 20px;
+    color: #FFFFFF; /* 将标题文字颜色修改为白色，与背景形成对比 */
+}
+
+#page1 p {
+    font-size: 24px;
+    margin-bottom: 20px;
+}

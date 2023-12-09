@@ -14,6 +14,10 @@ import (
 )
 
 func SetupRouter(router *gin.Engine) {
+	// 添加处理静态文件的中间件
+	// 添加处理静态文件的中间件
+	router.Static("/static", "./static")
+
 	router.LoadHTMLGlob("view/*")
 	//web文件
 	router.GET("/web/china_fence", func(c *gin.Context) {

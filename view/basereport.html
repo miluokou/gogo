@@ -28,51 +28,41 @@
     <script src="https://webapi.amap.com/maps?v=2.0&key=a7e7f4627788a84cc785e95ee11a4bb4"></script>
     <!-- 引入ECharts库 -->
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.3.0/dist/echarts.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="static/css/page1.css">
+    <link rel="stylesheet" type="text/css" href="static/css/page2.css">
 </head>
 <body>
+<div id="page1">
+    <h1>市场调研报告</h1>
+    <p>封面</p>
+    <p>2021年10月</p>
+</div>
+<div id="page2" class="container">
+    <div class="left-column">
+        <table id="cityTable2"></table> <!-- 表格放置在左侧栏内 -->
+    </div>
+    <div class="right-column">
+        <div id="mapContainer2"></div> <!-- 新增的div用于显示地图 -->
+    </div>
+</div>
+<div id="page3" class="container">
+    <div class="left-column">
+        <table id="cityTable"></table> <!-- 表格放置在左侧栏内 -->
+    </div>
+    <div class="right-column">
+        <div id="mapContainer"></div> <!-- 新增的div用于显示地图 -->
+    </div>
+</div>
+
+
+
+
 <h1>高德地图点位分布与ECharts表格数据</h1>
-<div id="mapContainer"></div>
+
 <div id="chartContainer"></div>
 <div id="tableContainer"></div>
+<script src="static/js/page2.js" type="module"></script>
 <script>
-    // 地图初始化
-    var lng = 116.397428; // 地图初始中心点经度
-    var lat = 39.90923; // 地图初始中心点纬度
-    var map = new AMap.Map('mapContainer', {
-        center: [lng, lat],
-        zoom: 12,
-    });
-
-    // 添加中心点圆形
-    var circleCenter = map.getCenter();
-    var circleRadius = 2000; // 圆的半径，单位：米
-    var circle = new AMap.Circle({
-        center: circleCenter,
-        radius: circleRadius,
-        fillColor: '#0000ff',
-        fillOpacity: 0.2,
-        strokeWeight: 1,
-        strokeColor: '#0000ff',
-        strokeOpacity: 0.5,
-    });
-    map.add(circle);
-
-    // 在圆内均匀打散点
-    var markerCount = 10; // 散点数量
-    var path = circle.getPath();
-    var step = Math.floor(path.length / markerCount);
-    var markers = [];
-    for (var i = 0; i < markerCount; i++) {
-        markers.push(new AMap.Marker({
-            position: path[i * step],
-            icon: new AMap.Icon({
-                size: new AMap.Size(20, 20),
-                image: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_b.png',
-                imageSize: new AMap.Size(20, 20)
-            })
-        }));
-    }
-    map.add(markers);
 
     // ECharts表格数据初始化
     var chart = echarts.init(document.getElementById('chartContainer'));
