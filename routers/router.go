@@ -36,6 +36,8 @@ func SetupRouter(router *gin.Engine) {
 			"title": "Hello, World!",
 		})
 	})
+	//chromedp 试一下chromedp是否能把网页转化为pdf
+	router.POST("/chromedp", generate.CreateAst)
 	// 添加中间件
 	router.Use(ResponseMiddleware())
 
@@ -73,9 +75,6 @@ func SetupRouter(router *gin.Engine) {
 
 	//11 暂无数据的任务添加
 	router.POST("/addNoDataJobs", job.AddNoDataJobs)
-
-	//chromedp 试一下chromedp是否能把网页转化为pdf
-	router.POST("/chromedp", generate.CreateAst)
 
 	//ocr识别，图片转化成excel 谷歌方案
 	router.POST("/ocr", ocr.ConvertToCSV)

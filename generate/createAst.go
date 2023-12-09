@@ -12,8 +12,8 @@ import (
 
 func CreateAst(c *gin.Context) {
 	options := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", false),
-		chromedp.Flag("disable-gpu", false),
+		chromedp.Flag("headless", true),
+		chromedp.Flag("disable-gpu", true),
 		chromedp.Flag("enable-automation", false),
 	)
 	ctx, cancel := chromedp.NewExecAllocator(context.Background(), options...)
